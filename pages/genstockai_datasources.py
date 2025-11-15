@@ -32,12 +32,20 @@ if uploaded_file is not None:
     st.success(f"✅ File uploaded: {uploaded_file.name}")
     st.info("💡 AI agents will process this data and generate recommendations within minutes.")
     
-    if st.button("Process Data Now"):
-        with st.spinner("Processing your sales data..."):
+    if st.button("Process Data Now", key="process_csv"):
+        with st.spinner("🤖 AI Processing in progress..."):
             import time
-            time.sleep(2)
-        st.success("✅ Data processed successfully! Check your Approval Queue for new recommendations.")
-        if st.button("Go to Approval Queue →"):
+            # Simulate AI processing steps
+            st.write("⚙️ Step 1/4: Parsing CSV data...")
+            time.sleep(0.5)
+            st.write("🧠 Step 2/4: Running GPT-4 analysis on sales patterns...")
+            time.sleep(0.5)
+            st.write("📊 Step 3/4: Applying ML forecasting models...")
+            time.sleep(0.5)
+            st.write("✨ Step 4/4: Generating AI recommendations...")
+            time.sleep(0.5)
+        st.success("✅ Data processed successfully! Check your Approval Queue for new AI-generated recommendations.")
+        if st.button("Go to Approval Queue →", key="goto_queue_csv"):
             st.switch_page("pages/3_✅_Approval_Queue.py")
 
 st.markdown("---")
@@ -52,11 +60,24 @@ if camera_photo is not None:
     st.success("✅ Photo captured successfully!")
     st.info("💡 AI vision will analyze stock levels and update inventory automatically.")
     
-    if st.button("Analyze Photo"):
-        with st.spinner("Analyzing shelf stock..."):
+    if st.button("Analyze Photo", key="analyze_photo"):
+        with st.spinner("🤖 AI Vision analyzing shelf stock..."):
             import time
-            time.sleep(2)
-        st.success("✅ Analysis complete! Detected 12 items with low stock.")
+            st.write("👁️ Running computer vision models (YOLOv8)...")
+            time.sleep(0.5)
+            st.write("🔍 Detecting products and counting units...")
+            time.sleep(0.5)
+            st.write("🧠 Cross-referencing with inventory database...")
+            time.sleep(0.5)
+        st.success("✅ AI Analysis complete! Detected 12 items with low stock.")
+        
+        # Show AI detection results
+        with st.expander("🤖 View AI Detection Results", expanded=True):
+            st.markdown("**Items Detected by Computer Vision:**")
+            st.markdown("- Red Bull: 8 units (Low - AI recommends reorder)")
+            st.markdown("- Croissants: 20 units (High - AI suggests promotion)")
+            st.markdown("- Coffee Beans: 15 units (Normal)")
+            st.markdown("- Milk: 6 units (Low - AI recommends reorder)")
 
 st.markdown("---")
 

@@ -54,9 +54,29 @@ st.markdown("### Quick Navigation")
 col1, col2 = st.columns(2)
 
 with col1:
-    if st.button("Go to Approval Queue →", use_container_width=True):
+    if st.button("Go to Approval Queue →", use_container_width=True, key="dash_queue"):
         st.switch_page("pages/3_✅_Approval_Queue.py")
 
 with col2:
-    if st.button("Upload New Data →", use_container_width=True):
+    if st.button("Upload New Data →", use_container_width=True, key="dash_upload"):
         st.switch_page("pages/2_📤_Data_Sources.py")
+
+st.markdown("---")
+
+# Add AI Processing Details
+st.markdown("### 🤖 AI Processing Pipeline")
+with st.container(border=True):
+    st.markdown("**Current AI Models Active:**")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**NLP & Analysis:**")
+        st.markdown("- GPT-4 for demand forecasting")
+        st.markdown("- Claude for negotiation drafting")
+        st.markdown("- Custom ML for pattern detection")
+    
+    with col2:
+        st.markdown("**Computer Vision:**")
+        st.markdown("- YOLOv8 for shelf scanning")
+        st.markdown("- OCR for receipt processing")
+        st.markdown("- Image classification for products")
