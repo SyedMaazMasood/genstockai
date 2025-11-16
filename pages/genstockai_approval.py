@@ -44,8 +44,12 @@ def load_recommendations():
     return []
 
 def save_recommendations(recommendations):
-    with open(RECOMMENDATIONS_FILE, 'w') as f:
-        json.dump(recommendations, f, indent=2)
+    """Save recommendations with proper JSON serialization"""
+    try:
+        with open(RECOMMENDATIONS_FILE, 'w') as f:
+            json.dump(recommendations, f, indent=2, default=str)
+    except Exception as e:
+        st.error(f"Error saving recommendations: {e}")
 
 def load_vendors():
     if os.path.exists(VENDORS_FILE):

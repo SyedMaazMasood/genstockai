@@ -185,6 +185,15 @@ if not sales_data:
 df = pd.DataFrame(sales_data)
 processor = CSVProcessor()
 processor.df = df
+
+# Convert string dates back to datetime if they exist
+for col in processor.df.columns:
+    if 'date' in col.lower() or 'time' in col.lower():
+        try:
+            processor.df[col] = pd.to_datetime(processor.df[col], errors='coerce')
+        except:
+            pass
+
 processor._detect_columns()
 
 stats = processor.get_summary_stats()

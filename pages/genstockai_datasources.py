@@ -24,12 +24,20 @@ def save_inventory(inventory):
         json.dump(inventory, f, indent=2)
 
 def save_sales_data(sales_data):
-    with open(SALES_DATA_FILE, 'w') as f:
-        json.dump(sales_data, f, indent=2)
+    """Save sales data with proper JSON serialization"""
+    try:
+        with open(SALES_DATA_FILE, 'w') as f:
+            json.dump(sales_data, f, indent=2, default=str)
+    except Exception as e:
+        st.error(f"Error saving sales data: {e}")
 
 def save_recommendations(recommendations):
-    with open(RECOMMENDATIONS_FILE, 'w') as f:
-        json.dump(recommendations, f, indent=2)
+    """Save recommendations with proper JSON serialization"""
+    try:
+        with open(RECOMMENDATIONS_FILE, 'w') as f:
+            json.dump(recommendations, f, indent=2, default=str)
+    except Exception as e:
+        st.error(f"Error saving recommendations: {e}")
 
 def load_sales_data():
     if os.path.exists(SALES_DATA_FILE):
@@ -345,7 +353,14 @@ if uploaded_file is not None:
             recommendations = processor.generate_recommendations(inventory)
             time.sleep(0.5)
             
+            # Convert dataframe to JSON-serializable format
             df = processor.get_dataframe()
+            
+            # Convert any datetime columns to strings
+            for col in df.columns:
+                if pd.api.types.is_datetime64_any_dtype(df[col]):
+                    df[col] = df[col].astype(str)
+            
             sales_data = df.to_dict('records')
             save_sales_data(sales_data)
             save_recommendations(recommendations)
