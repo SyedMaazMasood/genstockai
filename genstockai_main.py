@@ -94,4 +94,4 @@ with st.container(border=True):
 
 # Footer
 st.markdown("---")
-st.caption("GenStockAI © 2024 | Powered by AI | Built for Small Business Owners")
+st.caption("GenStockAI © 2025 | Powered by AI | Built for Small Business Owners")
