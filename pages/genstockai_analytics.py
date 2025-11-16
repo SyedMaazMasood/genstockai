@@ -1,24 +1,169 @@
 import streamlit as st
 import pandas as pd
-import sys
+import json
 import os
 
-# Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# ==================== EMBEDDED CONFIG & PROCESSOR ====================
+DATA_DIR = "data"
+os.makedirs(DATA_DIR, exist_ok=True)
 
-try:
-    from config import load_sales_data, load_inventory
-    from csv_processor import CSVProcessor
-except:
-    st.error("⚠️ Missing required files.")
-    st.stop()
+SALES_DATA_FILE = os.path.join(DATA_DIR, "sales_data.json")
+INVENTORY_FILE = os.path.join(DATA_DIR, "inventory.json")
 
+def load_sales_data():
+    if os.path.exists(SALES_DATA_FILE):
+        with open(SALES_DATA_FILE, 'r') as f:
+            return json.load(f)
+    return []
+
+def load_inventory():
+    if os.path.exists(INVENTORY_FILE):
+        with open(INVENTORY_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+class CSVProcessor:
+    def __init__(self):
+        self.df = None
+        self.column_mapping = {}
+    
+    def _detect_columns(self):
+        columns = self.df.columns.tolist()
+        
+        date_keywords = ['date', 'time', 'day', 'transaction']
+        for col in columns:
+            if any(kw in col for kw in date_keywords):
+                self.column_mapping['date'] = col
+                try:
+                    self.df[col] = pd.to_datetime(self.df[col], errors='coerce')
+                except:
+                    pass
+                break
+        
+        product_keywords = ['product', 'item', 'name', 'description', 'sku']
+        for col in columns:
+            if any(kw in col for kw in product_keywords):
+                self.column_mapping['product'] = col
+                break
+        
+        quantity_keywords = ['quantity', 'qty', 'units', 'count', 'amount']
+        for col in columns:
+            if any(kw in col for kw in quantity_keywords) and 'price' not in col:
+                self.column_mapping['quantity'] = col
+                break
+        
+        price_keywords = ['price', 'cost', 'amount', 'total']
+        for col in columns:
+            if 'unit' in col or ('price' in col and 'total' not in col):
+                self.column_mapping['unit_price'] = col
+            elif 'total' in col or ('price' in col and 'total' in col):
+                self.column_mapping['total_price'] = col
+        
+        if 'quantity' not in self.column_mapping:
+            self.df['quantity'] = 1
+            self.column_mapping['quantity'] = 'quantity'
+    
+    def get_summary_stats(self):
+        if self.df is None:
+            return None
+        
+        stats = {
+            'total_rows': len(self.df),
+            'date_range': None,
+            'unique_products': 0,
+            'total_revenue': 0,
+            'total_transactions': len(self.df)
+        }
+        
+        if 'date' in self.column_mapping:
+            date_col = self.column_mapping['date']
+            valid_dates = self.df[date_col].dropna()
+            if len(valid_dates) > 0:
+                stats['date_range'] = {
+                    'start': valid_dates.min(),
+                    'end': valid_dates.max()
+                }
+        
+        if 'product' in self.column_mapping:
+            stats['unique_products'] = self.df[self.column_mapping['product']].nunique()
+        
+        if 'total_price' in self.column_mapping:
+            stats['total_revenue'] = self.df[self.column_mapping['total_price']].sum()
+        elif 'unit_price' in self.column_mapping and 'quantity' in self.column_mapping:
+            self.df['calculated_total'] = (
+                pd.to_numeric(self.df[self.column_mapping['unit_price']], errors='coerce') * 
+                pd.to_numeric(self.df[self.column_mapping['quantity']], errors='coerce')
+            )
+            stats['total_revenue'] = self.df['calculated_total'].sum()
+        
+        return stats
+    
+    def analyze_product_performance(self):
+        if self.df is None or 'product' not in self.column_mapping:
+            return []
+        
+        product_col = self.column_mapping['product']
+        quantity_col = self.column_mapping['quantity']
+        
+        product_analysis = self.df.groupby(product_col).agg({
+            quantity_col: ['sum', 'count', 'mean']
+        }).reset_index()
+        
+        product_analysis.columns = ['product', 'total_quantity', 'transaction_count', 'avg_quantity']
+        
+        if 'date' in self.column_mapping:
+            date_col = self.column_mapping['date']
+            date_range = (self.df[date_col].max() - self.df[date_col].min()).days
+            weeks = max(date_range / 7, 1)
+            product_analysis['weekly_velocity'] = product_analysis['total_quantity'] / weeks
+        
+        return product_analysis.to_dict('records')
+    
+    def detect_trends(self):
+        if self.df is None:
+            return {}
+        
+        trends = {
+            'growing_products': [],
+            'declining_products': []
+        }
+        
+        if 'date' in self.column_mapping and 'product' in self.column_mapping:
+            date_col = self.column_mapping['date']
+            product_col = self.column_mapping['product']
+            quantity_col = self.column_mapping['quantity']
+            
+            for product in self.df[product_col].unique():
+                if pd.isna(product):
+                    continue
+                    
+                product_data = self.df[self.df[product_col] == product].copy()
+                product_data = product_data.sort_values(date_col)
+                
+                if len(product_data) >= 4:
+                    mid_point = len(product_data) // 2
+                    first_half = product_data.iloc[:mid_point][quantity_col].sum()
+                    second_half = product_data.iloc[mid_point:][quantity_col].sum()
+                    
+                    if second_half > first_half * 1.2:
+                        trends['growing_products'].append({
+                            'product': product,
+                            'growth_rate': ((second_half - first_half) / first_half * 100)
+                        })
+                    elif second_half < first_half * 0.8:
+                        trends['declining_products'].append({
+                            'product': product,
+                            'decline_rate': ((first_half - second_half) / first_half * 100)
+                        })
+        
+        return trends
+
+# ==================== MAIN PAGE CODE ====================
 st.title("📊 Analytics & Insights")
 st.markdown("AI-powered analysis of your sales data and inventory performance.")
 
 st.markdown("---")
 
-# Load data
 sales_data = load_sales_data()
 inventory = load_inventory()
 
@@ -37,18 +182,15 @@ if not sales_data:
     
     st.stop()
 
-# Process the data
 df = pd.DataFrame(sales_data)
 processor = CSVProcessor()
 processor.df = df
 processor._detect_columns()
 
-# Get analysis
 stats = processor.get_summary_stats()
 products = processor.analyze_product_performance()
 trends = processor.detect_trends()
 
-# Top metrics
 st.markdown("### 📈 Key Metrics")
 
 col1, col2, col3, col4 = st.columns(4)
@@ -72,17 +214,12 @@ with col4:
 
 st.markdown("---")
 
-# Product Performance Table
 st.markdown("### 🏆 Top Products by Sales")
 
 if products:
-    # Convert to DataFrame for display
     products_df = pd.DataFrame(products)
-    
-    # Sort by total quantity
     products_df = products_df.sort_values('total_quantity', ascending=False).head(10)
     
-    # Format for display
     display_df = products_df.copy()
     display_df['total_quantity'] = display_df['total_quantity'].apply(lambda x: f"{int(x):,}")
     display_df['transaction_count'] = display_df['transaction_count'].apply(lambda x: f"{int(x):,}")
@@ -107,7 +244,6 @@ else:
 
 st.markdown("---")
 
-# Trends Analysis
 st.markdown("### 📈 Trend Analysis")
 
 col1, col2 = st.columns(2)
@@ -140,7 +276,6 @@ with col2:
 
 st.markdown("---")
 
-# Inventory Status
 st.markdown("### 📦 Inventory Status")
 
 if inventory:
@@ -150,14 +285,12 @@ if inventory:
     for product, data in inventory.items():
         qty = data.get('quantity', 0)
         
-        # Get sales velocity if available
         velocity = 0
         for p in products:
             if p['product'] == product:
                 velocity = p.get('weekly_velocity', 0)
                 break
         
-        # Calculate weeks of supply
         weeks_supply = (qty / velocity) if velocity > 0 else 999
         
         status = "✅ Good"
@@ -174,10 +307,8 @@ if inventory:
             'status': status
         })
     
-    # Sort by weeks of supply
     inventory_data.sort(key=lambda x: x['weeks_supply'])
     
-    # Display as table
     for item in inventory_data[:10]:
         with st.container(border=True):
             col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
@@ -202,7 +333,6 @@ else:
 
 st.markdown("---")
 
-# AI Insights Section
 st.markdown("### 🤖 AI-Generated Insights")
 
 with st.container(border=True):
@@ -218,7 +348,6 @@ with st.container(border=True):
             import time
             time.sleep(1)
             
-            # Simple AI responses based on data
             if "best" in user_question.lower() or "top" in user_question.lower():
                 if products:
                     top_product = max(products, key=lambda x: x['total_quantity'])
@@ -252,7 +381,6 @@ with st.container(border=True):
                     st.success("No major concerns detected in your sales data. All products are performing within normal ranges.")
             
             else:
-                # Generic insights
                 st.info(f"""
                 **AI Summary of Your Business:**
                 
@@ -266,7 +394,6 @@ with st.container(border=True):
 
 st.markdown("---")
 
-# Export Options
 st.markdown("### 📥 Export Data")
 
 col1, col2, col3 = st.columns(3)

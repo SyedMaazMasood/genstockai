@@ -1,26 +1,74 @@
 import streamlit as st
-import sys
+import json
 import os
 import uuid
 
-# Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# ==================== EMBEDDED CONFIG ====================
+DATA_DIR = "data"
+os.makedirs(DATA_DIR, exist_ok=True)
 
-try:
-    from config import load_vendors, save_vendors
-except:
-    st.error("⚠️ Missing config.py file.")
-    st.stop()
+VENDORS_FILE = os.path.join(DATA_DIR, "vendors.json")
 
+DEFAULT_VENDORS = [
+    {
+        "id": "vendor_1",
+        "name": "Beverage Distributors Inc.",
+        "contact": "+1-555-0123",
+        "email": "orders@bevdist.com",
+        "order_method": "email",
+        "order_frequency": "weekly",
+        "order_day": "Monday",
+        "products": ["Red Bull", "Coca-Cola", "Pepsi", "Energy Drinks"],
+        "lead_time_days": 2,
+        "minimum_order": 50.00
+    },
+    {
+        "id": "vendor_2",
+        "name": "Fresh Bakery Supply",
+        "contact": "+1-555-0456",
+        "email": "orders@freshbakery.com",
+        "order_method": "phone",
+        "order_frequency": "daily",
+        "order_day": "Daily",
+        "products": ["Croissants", "Muffins", "Bagels", "Bread"],
+        "lead_time_days": 1,
+        "minimum_order": 30.00
+    },
+    {
+        "id": "vendor_3",
+        "name": "Peak Coffee",
+        "contact": "+1-555-0789",
+        "email": "sales@peakcoffee.com",
+        "order_method": "website",
+        "order_frequency": "biweekly",
+        "order_day": "Wednesday",
+        "products": ["Coffee Beans", "Tea", "Syrups"],
+        "lead_time_days": 3,
+        "minimum_order": 100.00
+    }
+]
+
+def load_vendors():
+    if os.path.exists(VENDORS_FILE):
+        with open(VENDORS_FILE, 'r') as f:
+            return json.load(f)
+    else:
+        with open(VENDORS_FILE, 'w') as f:
+            json.dump(DEFAULT_VENDORS, f, indent=2)
+        return DEFAULT_VENDORS
+
+def save_vendors(vendors):
+    with open(VENDORS_FILE, 'w') as f:
+        json.dump(vendors, f, indent=2)
+
+# ==================== MAIN PAGE CODE ====================
 st.title("🏪 Vendor Management")
 st.markdown("Manage your suppliers, delivery schedules, and ordering preferences.")
 
 st.markdown("---")
 
-# Load vendors
 vendors = load_vendors()
 
-# Tabs for different views
 tab1, tab2 = st.tabs(["📋 All Vendors", "➕ Add New Vendor"])
 
 with tab1:
@@ -46,7 +94,6 @@ with tab1:
                     st.success("Vendor deleted!")
                     st.rerun()
             
-            # Check if in edit mode
             if st.session_state.get(f'editing_{vendor["id"]}', False):
                 st.markdown("---")
                 st.markdown("#### Edit Vendor Details")
@@ -87,7 +134,6 @@ with tab1:
                     col1, col2 = st.columns(2)
                     with col1:
                         if st.form_submit_button("💾 Save Changes", type="primary"):
-                            # Update vendor in list
                             for j, v in enumerate(vendors):
                                 if v['id'] == vendor['id']:
                                     vendors[j] = vendor
@@ -102,7 +148,6 @@ with tab1:
                             st.rerun()
             
             else:
-                # Display vendor details
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
@@ -127,7 +172,6 @@ with tab1:
                     st.markdown("**Lead Time:**")
                     st.markdown(f"⏱️ {vendor.get('lead_time_days', 2)} days")
                 
-                # Products
                 with st.expander(f"📦 Products ({len(vendor.get('products', []))})"):
                     for product in vendor.get('products', []):
                         st.markdown(f"- {product}")
@@ -207,33 +251,26 @@ with tab2:
         )
         
         if st.form_submit_button("➕ Add Vendor", type="primary"):
-            # Validate
             if not new_vendor['name'] or not new_vendor['email']:
                 st.error("Please fill in all required fields (*)")
             elif not products_text.strip():
                 st.error("Please add at least one product")
             else:
-                # Generate ID
                 new_vendor['id'] = f"vendor_{uuid.uuid4().hex[:8]}"
-                
-                # Parse products
                 new_vendor['products'] = [p.strip() for p in products_text.split('\n') if p.strip()]
                 
-                # Add to vendors list
                 vendors.append(new_vendor)
                 save_vendors(vendors)
                 
                 st.success(f"✅ Vendor '{new_vendor['name']}' added successfully!")
                 st.balloons()
                 
-                # Clear form by rerunning
                 import time
                 time.sleep(1)
                 st.rerun()
 
 st.markdown("---")
 
-# Summary stats
 st.markdown("### 📊 Vendor Summary")
 
 col1, col2, col3 = st.columns(3)
@@ -242,7 +279,6 @@ with col1:
     st.metric("Total Vendors", len(vendors))
 
 with col2:
-    # Count by order method
     methods = {}
     for v in vendors:
         method = v.get('order_method', 'email')
@@ -251,7 +287,6 @@ with col2:
     st.metric("Most Common Method", most_common.title())
 
 with col3:
-    # Count unique products
     all_products = set()
     for v in vendors:
         all_products.update(v.get('products', []))
