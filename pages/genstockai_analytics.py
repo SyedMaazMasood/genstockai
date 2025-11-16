@@ -178,7 +178,7 @@ if not sales_data:
     """)
     
     if st.button("📤 Upload Sales Data", type="primary"):
-        st.switch_page("pages/2_📤_Data_Sources.py")
+        st.switch_page("pages/genstockai_datasources.py")
     
     st.stop()
 

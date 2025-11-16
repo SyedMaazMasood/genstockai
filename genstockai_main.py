@@ -58,7 +58,7 @@ st.markdown("### Your AI-Powered Inventory Management Assistant")
 if not has_data:
     st.warning("⚠️ **Get Started:** Upload your sales data to begin receiving AI-powered recommendations!")
     if st.button("📤 Upload Sales Data Now", type="primary", key="quick_upload"):
-        st.switch_page("pages/2_📤_Data_Sources.py")
+        st.switch_page("pages/genstockai_datasources.py")
 
 st.markdown("---")
 
@@ -105,19 +105,19 @@ col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     if st.button("📤 Upload Data", use_container_width=True, key="main_upload"):
-        st.switch_page("pages/2_📤_Data_Sources.py")
+        st.switch_page("pages/genstockai_datasources.py")
 
 with col2:
     if st.button(f"✅ Review Queue ({pending_recs})", use_container_width=True, key="main_queue", type="primary" if pending_recs > 0 else "secondary"):
-        st.switch_page("pages/3_✅_Approval_Queue.py")
+        st.switch_page("pages/genstockai_approval.py")
 
 with col3:
     if st.button("📊 Analytics", use_container_width=True, key="main_analytics", disabled=not has_data):
-        st.switch_page("pages/6_📊_Analytics.py")
+        st.switch_page("pages/genstockai_analytics.py")
 
 with col4:
     if st.button("🏪 Vendors", use_container_width=True, key="main_vendors"):
-        st.switch_page("pages/5_🏪_Vendor_Management.py")
+        st.switch_page("pages/genstockai_vendors.py")
 
 # System status
 st.markdown("---")

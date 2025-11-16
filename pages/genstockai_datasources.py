@@ -403,7 +403,7 @@ if uploaded_file is not None:
         st.success(f"🎯 Generated {len(recommendations)} AI recommendations!")
         
         if st.button("➡️ Go to Approval Queue", key="goto_queue_csv", type="primary"):
-            st.switch_page("pages/3_✅_Approval_Queue.py")
+            st.switch_page("pages/genstockai_approval.py")
 
 st.markdown("---")
 
