@@ -6,29 +6,29 @@ import numpy as np
 from datetime import datetime
 
 # ==================== AI CONFIGURATION SETTINGS ====================
-"""
-🎛️ AI/ML HYPERPARAMETERS - ADJUST HERE
-========================================
-These parameters control the behavior of AI models and algorithms.
-Modify these values to tune the AI's decision-making process.
-
-⚠️ FOR DEVELOPERS: Change values below to customize AI behavior
-📍 LOCATION: Lines 15-80 of this file
-
-In production, these would be passed to actual API calls:
-- OpenAI API: openai.ChatCompletion.create(**GPT4_CONFIG)
-- Anthropic API: anthropic.messages.create(**CLAUDE_CONFIG)
-"""
+#
+# 🎛️ AI/ML HYPERPARAMETERS - ADJUST HERE
+# ========================================
+# These parameters control the behavior of AI models and algorithms.
+# Modify these values to tune the AI's decision-making process.
+#
+# ⚠️ FOR DEVELOPERS: Change values below to customize AI behavior
+# 📍 LOCATION: Lines 15-80 of this file
+#
+# In production, these would be passed to actual API calls:
+# - OpenAI API: openai.ChatCompletion.create(**GPT4_CONFIG)
+# - Anthropic API: anthropic.messages.create(**CLAUDE_CONFIG)
+#
 
 # ============================================================
 # === GPT-4 CONFIGURATION (OpenAI API) ===
 # ============================================================
-"""
-🤖 OpenAI GPT-4 Configuration
-Used for: Demand forecasting, reorder recommendations, data analysis
-
-📍 ADJUST THESE VALUES to change GPT-4 behavior:
-"""
+#
+# 🤖 OpenAI GPT-4 Configuration
+# Used for: Demand forecasting, reorder recommendations, data analysis
+#
+# 📍 ADJUST THESE VALUES to change GPT-4 behavior:
+#
 GPT4_CONFIG = {
     # Model Selection
     "model": "gpt-4-turbo-preview",           
@@ -82,12 +82,12 @@ GPT4_CONFIG = {
 # ============================================================
 # === CLAUDE CONFIGURATION (Anthropic API) ===
 # ============================================================
-"""
-🤖 Anthropic Claude Configuration
-Used for: Strategic planning, supplier negotiations, business communications
-
-📍 ADJUST THESE VALUES to change Claude behavior:
-"""
+#
+# 🤖 Anthropic Claude Configuration
+# Used for: Strategic planning, supplier negotiations, business communications
+#
+# 📍 ADJUST THESE VALUES to change Claude behavior:
+#
 CLAUDE_CONFIG = {
     # Model Selection
     "model": "claude-3-5-sonnet-20241022",    
@@ -111,12 +111,12 @@ CLAUDE_CONFIG = {
 # ============================================================
 # === ML ALGORITHM PARAMETERS ===
 # ============================================================
-"""
-📊 Machine Learning Algorithm Configuration
-Used for: Trend detection, sales forecasting, recommendation generation
-
-📍 ADJUST THESE VALUES to change ML behavior:
-"""
+#
+# 📊 Machine Learning Algorithm Configuration
+# Used for: Trend detection, sales forecasting, recommendation generation
+#
+# 📍 ADJUST THESE VALUES to change ML behavior:
+#
 ML_CONFIG = {
     # ──────────────────────────────────
     # TREND DETECTION THRESHOLDS
@@ -211,12 +211,12 @@ ML_CONFIG = {
 # ============================================================
 # === COMPUTER VISION PARAMETERS (YOLOv8) ===
 # ============================================================
-"""
-👁️ Computer Vision Configuration
-Used for: Shelf scanning, product detection, inventory counting
-
-📍 ADJUST THESE VALUES for object detection:
-"""
+#
+# 👁️ Computer Vision Configuration
+# Used for: Shelf scanning, product detection, inventory counting
+#
+# 📍 ADJUST THESE VALUES for object detection:
+#
 VISION_CONFIG = {
     # Confidence Threshold: Minimum confidence to accept detection
     # Range: 0.1 - 0.9
@@ -245,30 +245,30 @@ VISION_CONFIG = {
 # ============================================================
 # 💡 QUICK REFERENCE - RECOMMENDED PRESETS
 # ============================================================
-"""
-Copy-paste these presets for different use cases:
-
-CONSERVATIVE (Safe, High Inventory):
-------------------------------------
-temperature = 0.1
-base_confidence = 90
-reorder_multiplier = 3
-low_stock_threshold = 2
-
-BALANCED (Recommended Default):
--------------------------------
-temperature = 0.3
-base_confidence = 85
-reorder_multiplier = 2
-low_stock_threshold = 1
-
-AGGRESSIVE (Lean Inventory):
-----------------------------
-temperature = 0.5
-base_confidence = 80
-reorder_multiplier = 1.5
-low_stock_threshold = 0.5
-"""
+#
+# Copy-paste these presets for different use cases:
+#
+# CONSERVATIVE (Safe, High Inventory):
+# ------------------------------------
+# temperature = 0.1
+# base_confidence = 90
+# reorder_multiplier = 3
+# low_stock_threshold = 2
+#
+# BALANCED (Recommended Default):
+# -------------------------------
+# temperature = 0.3
+# base_confidence = 85
+# reorder_multiplier = 2
+# low_stock_threshold = 1
+#
+# AGGRESSIVE (Lean Inventory):
+# ----------------------------
+# temperature = 0.5
+# base_confidence = 80
+# reorder_multiplier = 1.5
+# low_stock_threshold = 0.5
+#
 
 # Helper function to get AI config
 def get_ai_config(model_type="gpt4"):
@@ -297,6 +297,8 @@ def get_ai_config(model_type="gpt4"):
 # All AI parameters above can be modified to customize behavior
 # Changes take effect immediately on next CSV processing
 # ============================================================
+
+# ==================== EMBEDDED CONFIG ====================
 
 SALES_DATA_FILE = os.path.join(DATA_DIR, "sales_data.json")
 INVENTORY_FILE = os.path.join(DATA_DIR, "inventory.json")
@@ -336,24 +338,22 @@ def load_sales_data():
 
 # ==================== EMBEDDED CSV PROCESSOR ====================
 class CSVProcessor:
-    """
-    AI-POWERED CSV PROCESSOR
-    ========================
-    This class uses Machine Learning and AI techniques to automatically
-    analyze sales data and generate intelligent recommendations.
-    
-    AI/ML COMPONENTS USED:
-    ----------------------
-    1. COLUMN DETECTION: Natural Language Processing (NLP) to identify column types
-    2. TREND ANALYSIS: Time-series forecasting (ARIMA-style pattern detection)
-    3. DEMAND PREDICTION: Statistical ML for sales velocity calculation
-    4. RECOMMENDATION ENGINE: Rule-based AI with confidence scoring
-    
-    Note: In production, this would connect to:
-    - OpenAI GPT-4 API (temperature=0.3 for consistent analysis)
-    - Anthropic Claude API (temperature=0.2 for strategic planning)
-    - Custom ML models for time-series forecasting
-    """
+    # AI-POWERED CSV PROCESSOR
+    # ========================
+    # This class uses Machine Learning and AI techniques to automatically
+    # analyze sales data and generate intelligent recommendations.
+    #
+    # AI/ML COMPONENTS USED:
+    # ----------------------
+    # 1. COLUMN DETECTION: Natural Language Processing (NLP) to identify column types
+    # 2. TREND ANALYSIS: Time-series forecasting (ARIMA-style pattern detection)
+    # 3. DEMAND PREDICTION: Statistical ML for sales velocity calculation
+    # 4. RECOMMENDATION ENGINE: Rule-based AI with confidence scoring
+    #
+    # Note: In production, this would connect to:
+    # - OpenAI GPT-4 API (temperature=0.3 for consistent analysis)
+    # - Anthropic Claude API (temperature=0.2 for strategic planning)
+    # - Custom ML models for time-series forecasting
     
     def __init__(self):
         self.df = None
@@ -384,21 +384,19 @@ class CSVProcessor:
             return False, f"Error loading CSV: {str(e)}"
     
     def _detect_columns(self):
-        """
-        AI-POWERED COLUMN DETECTION
-        ============================
-        Uses Natural Language Processing (NLP) to identify column purposes.
-        
-        AI PARAMETERS:
-        - Similarity threshold: 0.7 (70% confidence for keyword matching)
-        - Pattern recognition: Fuzzy string matching
-        
-        In production, this would use:
-        - GPT-4 with temperature=0.1 (very deterministic)
-        - Prompt: "Analyze these column names and categorize them"
-        - Model: gpt-4-turbo-preview
-        - Max tokens: 500
-        """
+        # AI-POWERED COLUMN DETECTION
+        # ============================
+        # Uses Natural Language Processing (NLP) to identify column purposes.
+        #
+        # AI PARAMETERS:
+        # - Similarity threshold: 0.7 (70% confidence for keyword matching)
+        # - Pattern recognition: Fuzzy string matching
+        #
+        # In production, this would use:
+        # - GPT-4 with temperature=0.1 (very deterministic)
+        # - Prompt: "Analyze these column names and categorize them"
+        # - Model: gpt-4-turbo-preview
+        # - Max tokens: 500
         columns = self.df.columns.tolist()
         
         # AI DETECTION: UPC/SKU/Barcode columns (for unique identification)
@@ -452,11 +450,9 @@ class CSVProcessor:
         return self.column_mapping
     
     def get_summary_stats(self):
-        """
-        STATISTICAL ANALYSIS
-        ====================
-        Calculates key business metrics using statistical methods.
-        """
+        # STATISTICAL ANALYSIS
+        # ====================
+        # Calculates key business metrics using statistical methods.
         if self.df is None:
             return None
         
@@ -495,16 +491,14 @@ class CSVProcessor:
         return stats
     
     def analyze_product_performance(self):
-        """
-        MACHINE LEARNING: Product Performance Analysis
-        ================================================
-        Uses statistical ML to calculate sales velocity and trends.
-        
-        ML TECHNIQUES:
-        - Aggregation: GroupBy operations for pattern detection
-        - Velocity calculation: Time-series based sales rate
-        - Statistical measures: Mean, sum, count
-        """
+        # MACHINE LEARNING: Product Performance Analysis
+        # ================================================
+        # Uses statistical ML to calculate sales velocity and trends.
+        #
+        # ML TECHNIQUES:
+        # - Aggregation: GroupBy operations for pattern detection
+        # - Velocity calculation: Time-series based sales rate
+        # - Statistical measures: Mean, sum, count
         if self.df is None or 'product' not in self.column_mapping:
             return []
         
@@ -529,27 +523,25 @@ class CSVProcessor:
         return product_analysis.to_dict('records')
     
     def detect_trends(self):
-        """
-        AI TREND DETECTION ENGINE
-        ==========================
-        Uses time-series analysis to identify growing/declining products.
-        
-        AI ALGORITHM:
-        - Split data into two halves (before/after midpoint)
-        - Compare performance using statistical significance
-        - Threshold: 20% change = significant trend
-        
-        In production, this would use:
-        - ARIMA models for time-series forecasting
-        - Prophet (Facebook's forecasting library)
-        - LSTM neural networks for deep learning predictions
-        
-        AI PARAMETERS:
-        - Growth threshold: 1.2 (20% increase)
-        - Decline threshold: 0.8 (20% decrease)
-        - Minimum data points: 4 (for statistical validity)
-        - Confidence level: 80% (p-value < 0.2)
-        """
+        # AI TREND DETECTION ENGINE
+        # ==========================
+        # Uses time-series analysis to identify growing/declining products.
+        #
+        # AI ALGORITHM:
+        # - Split data into two halves (before/after midpoint)
+        # - Compare performance using statistical significance
+        # - Threshold: 20% change = significant trend
+        #
+        # In production, this would use:
+        # - ARIMA models for time-series forecasting
+        # - Prophet (Facebook's forecasting library)
+        # - LSTM neural networks for deep learning predictions
+        #
+        # AI PARAMETERS:
+        # - Growth threshold: 1.2 (20% increase)
+        # - Decline threshold: 0.8 (20% decrease)
+        # - Minimum data points: 4 (for statistical validity)
+        # - Confidence level: 80% (p-value < 0.2)
         if self.df is None:
             return {}
         
@@ -601,67 +593,60 @@ class CSVProcessor:
         return trends
     
     def generate_recommendations(self, inventory=None):
-        """
-        AI RECOMMENDATION ENGINE
-        =========================
-        This is the core AI that generates intelligent reorder recommendations.
-        
-        AI DECISION ALGORITHM:
-        1. Calculate sales velocity (ML-based forecasting)
-        2. Compare with current stock levels
-        3. Factor in growth trends (time-series analysis)
-        4. Generate confidence score (0-100%)
-        5. Calculate optimal reorder quantity
-        
-        In production, this would call:
-        
-        OPENAI GPT-4 API CALL:
-        ----------------------
-        import openai
-        
-        response = openai.ChatCompletion.create(
-            model="gpt-4-turbo-preview",
-            temperature=0.3,  # Low temp for consistent business decisions
-            max_tokens=500,
-            top_p=0.9,
-            frequency_penalty=0.0,
-            presence_penalty=0.0,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are an inventory management AI. Analyze sales data and generate reorder recommendations."
-                },
-                {
-                    "role": "user",
-                    "content": f"Product: {product_name}, Weekly sales: {velocity}, Current stock: {stock}. Should we reorder?"
-                }
-            ]
-        )
-        
-        ANTHROPIC CLAUDE API CALL:
-        ---------------------------
-        import anthropic
-        
-        client = anthropic.Anthropic(api_key="...")
-        message = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            temperature=0.2,  # Very low for deterministic recommendations
-            max_tokens=1000,
-            system="You are an AI inventory optimization specialist.",
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"Analyze: {product_data}. Generate reorder recommendation."
-                }
-            ]
-        )
-        
-        AI PARAMETERS:
-        - Confidence threshold: 85% minimum for auto-approval
-        - Growth factor: 1.0 + (growth_rate / 100)
-        - Reorder multiplier: 2 weeks of supply
-        - Safety stock: 1 week buffer
-        """
+        # AI RECOMMENDATION ENGINE
+        # =========================
+        # This is the core AI that generates intelligent reorder recommendations.
+        #
+        # AI DECISION ALGORITHM:
+        # 1. Calculate sales velocity (ML-based forecasting)
+        # 2. Compare with current stock levels
+        # 3. Factor in growth trends (time-series analysis)
+        # 4. Generate confidence score (0-100%)
+        # 5. Calculate optimal reorder quantity
+        #
+        # In production, this would call:
+        #
+        # OPENAI GPT-4 API CALL:
+        # ----------------------
+        # import openai
+        #
+        # response = openai.ChatCompletion.create(
+        #     model="gpt-4-turbo-preview",
+        #     temperature=0.3,  # Low temp for consistent business decisions
+        #     max_tokens=500,
+        #     top_p=0.9,
+        #     frequency_penalty=0.0,
+        #     presence_penalty=0.0,
+        #     messages=[
+        #         {
+        #             "role": "system",
+        #             "content": "You are an inventory management AI."
+        #         },
+        #         {
+        #             "role": "user",
+        #             "content": f"Product: {product_name}, Weekly sales: {velocity}, Stock: {stock}"
+        #         }
+        #     ]
+        # )
+        #
+        # ANTHROPIC CLAUDE API CALL:
+        # ---------------------------
+        # import anthropic
+        #
+        # client = anthropic.Anthropic(api_key="...")
+        # message = client.messages.create(
+        #     model="claude-3-5-sonnet-20241022",
+        #     temperature=0.2,  # Very low for deterministic recommendations
+        #     max_tokens=1000,
+        #     system="You are an AI inventory optimization specialist.",
+        #     messages=[...]
+        # )
+        #
+        # AI PARAMETERS:
+        # - Confidence threshold: 85% minimum for auto-approval
+        # - Growth factor: 1.0 + (growth_rate / 100)
+        # - Reorder multiplier: 2 weeks of supply
+        # - Safety stock: 1 week buffer
         recommendations = []
         
         if self.df is None:

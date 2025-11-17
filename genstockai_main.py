@@ -176,4 +176,4 @@ if has_data or pending_recs > 0:
 
 # Footer
 st.markdown("---")
-st.caption("GenStockAI © 2024 | Powered by GPT-4, Claude & Advanced ML | Built for Small Business Owners")
+st.caption("GenStockAI © 2025 | Powered by GPT-4, Claude & Advanced ML | Built for Small Business Owners")
