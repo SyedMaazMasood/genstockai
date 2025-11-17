@@ -7,57 +7,268 @@ from datetime import datetime
 
 # ==================== AI CONFIGURATION SETTINGS ====================
 """
-AI/ML HYPERPARAMETERS
-=====================
+🎛️ AI/ML HYPERPARAMETERS - ADJUST HERE
+========================================
 These parameters control the behavior of AI models and algorithms.
-Adjust these values to tune the AI's decision-making process.
+Modify these values to tune the AI's decision-making process.
 
-⚠️ IMPORTANT: In production, these would be passed to actual AI API calls.
-For this demo, they are shown here for educational purposes.
+⚠️ FOR DEVELOPERS: Change values below to customize AI behavior
+📍 LOCATION: Lines 15-80 of this file
+
+In production, these would be passed to actual API calls:
+- OpenAI API: openai.ChatCompletion.create(**GPT4_CONFIG)
+- Anthropic API: anthropic.messages.create(**CLAUDE_CONFIG)
 """
 
-# === GPT-4 CONFIGURATION (OpenAI) ===
+# ============================================================
+# === GPT-4 CONFIGURATION (OpenAI API) ===
+# ============================================================
+"""
+🤖 OpenAI GPT-4 Configuration
+Used for: Demand forecasting, reorder recommendations, data analysis
+
+📍 ADJUST THESE VALUES to change GPT-4 behavior:
+"""
 GPT4_CONFIG = {
-    "model": "gpt-4-turbo-preview",           # AI model version
-    "temperature": 0.3,                        # 0.0-2.0: Lower = more deterministic, Higher = more creative
-    "max_tokens": 500,                         # Maximum response length (1 token ≈ 4 characters)
-    "top_p": 0.9,                              # 0.0-1.0: Nucleus sampling (0.9 = top 90% probability tokens)
-    "frequency_penalty": 0.0,                  # 0.0-2.0: Reduce repetition
-    "presence_penalty": 0.0,                   # 0.0-2.0: Encourage new topics
+    # Model Selection
+    "model": "gpt-4-turbo-preview",           
+    # Options: "gpt-4-turbo-preview", "gpt-4", "gpt-3.5-turbo"
+    # Recommendation: "gpt-4-turbo-preview" for best performance
+    
+    # Temperature: Controls randomness/creativity
+    # Range: 0.0 - 2.0
+    # 0.0 = Completely deterministic, same output every time
+    # 0.3 = ✅ RECOMMENDED for business decisions (consistent but not rigid)
+    # 0.7 = Balanced creativity
+    # 1.0 = Creative and varied
+    # 2.0 = Very random and unpredictable
+    "temperature": 0.3,                        # ← CHANGE THIS for different creativity levels
+    
+    # Max Tokens: Maximum length of AI response
+    # Range: 50 - 4000
+    # 1 token ≈ 4 characters or 0.75 words
+    # 100 tokens ≈ 75 words
+    # 500 tokens ≈ ✅ RECOMMENDED for recommendations (375 words)
+    # 1000 tokens ≈ 750 words (detailed reports)
+    # Note: Higher values = higher API costs
+    "max_tokens": 500,                         # ← CHANGE THIS for longer/shorter responses
+    
+    # Top P (Nucleus Sampling): Alternative to temperature
+    # Range: 0.0 - 1.0
+    # 0.1 = Only top 10% most likely tokens (very focused)
+    # 0.5 = Top 50% of tokens
+    # 0.9 = ✅ RECOMMENDED (top 90% - good balance)
+    # 1.0 = Consider all tokens
+    # Note: Use either temperature OR top_p, not both at extreme values
+    "top_p": 0.9,                              # ← CHANGE THIS for token selection diversity
+    
+    # Frequency Penalty: Reduces repetition of tokens
+    # Range: 0.0 - 2.0
+    # 0.0 = ✅ RECOMMENDED (no penalty, natural repetition)
+    # 0.5 = Slight reduction in repetition
+    # 1.0 = Moderate reduction
+    # 2.0 = Strong reduction (may affect quality)
+    "frequency_penalty": 0.0,                  # ← CHANGE THIS to reduce word repetition
+    
+    # Presence Penalty: Encourages talking about new topics
+    # Range: 0.0 - 2.0
+    # 0.0 = ✅ RECOMMENDED (natural topic flow)
+    # 0.5 = Slight encouragement for new topics
+    # 1.0 = Moderate encouragement
+    # 2.0 = Strong encouragement (may lose focus)
+    "presence_penalty": 0.0,                   # ← CHANGE THIS to encourage topic diversity
 }
 
-# === CLAUDE CONFIGURATION (Anthropic) ===
+# ============================================================
+# === CLAUDE CONFIGURATION (Anthropic API) ===
+# ============================================================
+"""
+🤖 Anthropic Claude Configuration
+Used for: Strategic planning, supplier negotiations, business communications
+
+📍 ADJUST THESE VALUES to change Claude behavior:
+"""
 CLAUDE_CONFIG = {
-    "model": "claude-3-5-sonnet-20241022",    # AI model version
-    "temperature": 0.2,                        # Lower for formal business communications
-    "max_tokens": 1000,                        # Longer for detailed responses
+    # Model Selection
+    "model": "claude-3-5-sonnet-20241022",    
+    # Options: "claude-3-5-sonnet-20241022", "claude-3-opus-20240229"
+    # Recommendation: Sonnet for speed, Opus for quality
+    
+    # Temperature: Controls randomness (lower than GPT-4 for formal writing)
+    # Range: 0.0 - 1.0 (Claude max is 1.0, unlike GPT-4's 2.0)
+    # 0.0 = Completely deterministic
+    # 0.2 = ✅ RECOMMENDED for business emails (very consistent)
+    # 0.5 = Balanced
+    # 1.0 = Creative
+    "temperature": 0.2,                        # ← CHANGE THIS (keep low for professional tone)
+    
+    # Max Tokens: Response length
+    # Range: 50 - 4000
+    # 1000 = ✅ RECOMMENDED for detailed negotiations
+    "max_tokens": 1000,                        # ← CHANGE THIS for email length
 }
 
+# ============================================================
 # === ML ALGORITHM PARAMETERS ===
+# ============================================================
+"""
+📊 Machine Learning Algorithm Configuration
+Used for: Trend detection, sales forecasting, recommendation generation
+
+📍 ADJUST THESE VALUES to change ML behavior:
+"""
 ML_CONFIG = {
-    # Trend Detection
-    "growth_threshold": 1.2,                   # 20% increase = growing trend
-    "decline_threshold": 0.8,                  # 20% decrease = declining trend
-    "min_data_points": 4,                      # Minimum samples for valid trend analysis
-    "confidence_level": 0.8,                   # 80% statistical confidence
+    # ──────────────────────────────────
+    # TREND DETECTION THRESHOLDS
+    # ──────────────────────────────────
     
-    # Recommendation Engine
-    "base_confidence": 85,                     # Starting confidence percentage
-    "growth_bonus_max": 10,                    # Max confidence boost from growth
-    "reorder_multiplier": 2,                   # Weeks of supply to order
-    "safety_stock_weeks": 1,                   # Buffer inventory
-    "low_stock_threshold": 1.0,                # Trigger reorder when < 1 week supply
+    # Growth Threshold: What % increase = "growing trend"
+    # Range: 1.0 - 2.0
+    # 1.1 = 10% increase triggers "growing" (more sensitive)
+    # 1.2 = ✅ RECOMMENDED 20% increase (balanced)
+    # 1.5 = 50% increase (less sensitive, only major growth)
+    # Formula: If (current_sales / past_sales) > this value → GROWING
+    "growth_threshold": 1.2,                   # ← CHANGE THIS to adjust growth sensitivity
     
-    # Column Detection
-    "similarity_threshold": 0.7,               # 70% similarity for keyword matching
+    # Decline Threshold: What % decrease = "declining trend"
+    # Range: 0.5 - 1.0
+    # 0.9 = 10% decrease triggers "declining" (more sensitive)
+    # 0.8 = ✅ RECOMMENDED 20% decrease (balanced)
+    # 0.7 = 30% decrease (less sensitive)
+    # Formula: If (current_sales / past_sales) < this value → DECLINING
+    "decline_threshold": 0.8,                  # ← CHANGE THIS to adjust decline sensitivity
+    
+    # Minimum Data Points: Required samples for valid trend analysis
+    # Range: 2 - 10
+    # 2 = Very little data needed (may be unreliable)
+    # 4 = ✅ RECOMMENDED (good balance)
+    # 8 = Lots of data required (more reliable but fewer trends detected)
+    "min_data_points": 4,                      # ← CHANGE THIS for data requirements
+    
+    # Confidence Level: Statistical confidence threshold
+    # Range: 0.5 - 0.99
+    # 0.8 = ✅ RECOMMENDED 80% confidence (standard)
+    # 0.95 = 95% confidence (very strict)
+    # Note: This is the p-value threshold (p < 0.2 for 80% confidence)
+    "confidence_level": 0.8,                   # ← CHANGE THIS for statistical rigor
+    
+    # ──────────────────────────────────
+    # RECOMMENDATION ENGINE SETTINGS
+    # ──────────────────────────────────
+    
+    # Base Confidence: Starting confidence percentage for recommendations
+    # Range: 50 - 95
+    # 80 = Conservative (require more certainty)
+    # 85 = ✅ RECOMMENDED (balanced)
+    # 90 = Aggressive (trust AI more)
+    # Note: Growth trends add bonus on top of this
+    "base_confidence": 85,                     # ← CHANGE THIS for recommendation confidence
+    
+    # Growth Bonus Max: Maximum confidence boost from growth trends
+    # Range: 0 - 20
+    # 0 = No bonus for growth
+    # 10 = ✅ RECOMMENDED (up to +10% for high growth)
+    # 20 = Large bonus (may overweight growth)
+    # Formula: bonus = min(growth_rate / 2, this_value)
+    "growth_bonus_max": 10,                    # ← CHANGE THIS for growth importance
+    
+    # Reorder Multiplier: How many weeks of supply to order
+    # Range: 1.0 - 4.0
+    # 1.0 = Just-in-time (minimal inventory, risky)
+    # 2.0 = ✅ RECOMMENDED (2 weeks supply, safe balance)
+    # 3.0 = Conservative (high inventory, lower risk)
+    # 4.0 = Very conservative (may tie up capital)
+    # Formula: order_qty = weekly_sales * this_value
+    "reorder_multiplier": 2,                   # ← CHANGE THIS for inventory strategy
+    
+    # Safety Stock: Additional buffer inventory (weeks)
+    # Range: 0.0 - 2.0
+    # 0.0 = No safety stock (risky)
+    # 1.0 = ✅ RECOMMENDED (1 week buffer)
+    # 2.0 = Very safe (high carrying costs)
+    "safety_stock_weeks": 1,                   # ← CHANGE THIS for safety buffer
+    
+    # Low Stock Threshold: When to trigger reorder recommendation
+    # Range: 0.5 - 2.0 (weeks of supply remaining)
+    # 0.5 = Wait until last minute (risky, may stockout)
+    # 1.0 = ✅ RECOMMENDED (reorder at 1 week remaining)
+    # 2.0 = Very early reorder (safe but high inventory)
+    # Formula: If (current_stock / weekly_sales) < this_value → REORDER
+    "low_stock_threshold": 1.0,                # ← CHANGE THIS for reorder timing
+    
+    # ──────────────────────────────────
+    # COLUMN DETECTION (NLP)
+    # ──────────────────────────────────
+    
+    # Similarity Threshold: Keyword matching confidence
+    # Range: 0.5 - 0.9
+    # 0.5 = Loose matching (may detect wrong columns)
+    # 0.7 = ✅ RECOMMENDED (balanced)
+    # 0.9 = Strict matching (may miss valid columns)
+    "similarity_threshold": 0.7,               # ← CHANGE THIS for column detection sensitivity
 }
 
+# ============================================================
 # === COMPUTER VISION PARAMETERS (YOLOv8) ===
+# ============================================================
+"""
+👁️ Computer Vision Configuration
+Used for: Shelf scanning, product detection, inventory counting
+
+📍 ADJUST THESE VALUES for object detection:
+"""
 VISION_CONFIG = {
-    "confidence_threshold": 0.5,               # Minimum detection confidence
-    "iou_threshold": 0.45,                     # Intersection over Union for duplicate detection
-    "max_detections": 100,                     # Maximum objects to detect per image
+    # Confidence Threshold: Minimum confidence to accept detection
+    # Range: 0.1 - 0.9
+    # 0.3 = Accept low-confidence detections (more items, more false positives)
+    # 0.5 = ✅ RECOMMENDED (balanced accuracy)
+    # 0.7 = Only high-confidence detections (fewer items, high accuracy)
+    # Formula: If (detection_confidence > this_value) → ACCEPT
+    "confidence_threshold": 0.5,               # ← CHANGE THIS for detection sensitivity
+    
+    # IoU Threshold: Intersection over Union for duplicate filtering
+    # Range: 0.1 - 0.9
+    # 0.3 = Aggressive duplicate removal
+    # 0.45 = ✅ RECOMMENDED (balanced)
+    # 0.7 = Keep more overlapping detections
+    # Note: Lower value = more aggressive at removing duplicates
+    "iou_threshold": 0.45,                     # ← CHANGE THIS for duplicate handling
+    
+    # Max Detections: Maximum objects to detect per image
+    # Range: 10 - 500
+    # 50 = Small shelves
+    # 100 = ✅ RECOMMENDED (typical shelf)
+    # 300 = Large warehouse sections
+    "max_detections": 100,                     # ← CHANGE THIS for detection capacity
 }
+
+# ============================================================
+# 💡 QUICK REFERENCE - RECOMMENDED PRESETS
+# ============================================================
+"""
+Copy-paste these presets for different use cases:
+
+CONSERVATIVE (Safe, High Inventory):
+------------------------------------
+temperature = 0.1
+base_confidence = 90
+reorder_multiplier = 3
+low_stock_threshold = 2
+
+BALANCED (Recommended Default):
+-------------------------------
+temperature = 0.3
+base_confidence = 85
+reorder_multiplier = 2
+low_stock_threshold = 1
+
+AGGRESSIVE (Lean Inventory):
+----------------------------
+temperature = 0.5
+base_confidence = 80
+reorder_multiplier = 1.5
+low_stock_threshold = 0.5
+"""
 
 # Helper function to get AI config
 def get_ai_config(model_type="gpt4"):
@@ -82,7 +293,10 @@ def get_ai_config(model_type="gpt4"):
     }
     return configs.get(model_type, GPT4_CONFIG)
 
-# ==================== END CONFIGURATION ====================
+# ==================== END AI CONFIGURATION ====================
+# All AI parameters above can be modified to customize behavior
+# Changes take effect immediately on next CSV processing
+# ============================================================
 
 SALES_DATA_FILE = os.path.join(DATA_DIR, "sales_data.json")
 INVENTORY_FILE = os.path.join(DATA_DIR, "inventory.json")
