@@ -300,6 +300,8 @@ def get_ai_config(model_type="gpt4"):
 
 # ==================== EMBEDDED CONFIG ====================
 
+DATA_DIR = "data"
+os.makedirs(DATA_DIR, exist_ok=True)
 SALES_DATA_FILE = os.path.join(DATA_DIR, "sales_data.json")
 INVENTORY_FILE = os.path.join(DATA_DIR, "inventory.json")
 RECOMMENDATIONS_FILE = os.path.join(DATA_DIR, "recommendations.json")
