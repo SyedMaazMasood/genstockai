@@ -101,7 +101,7 @@ else:
 
 # Quick actions
 st.markdown("### Quick Actions")
-col1, col2, col3, col4, col5 = st.columns(5)
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     if st.button("📤 Upload Data", use_container_width=True, key="main_upload"):
@@ -118,10 +118,6 @@ with col3:
 with col4:
     if st.button("🏪 Vendors", use_container_width=True, key="main_vendors"):
         st.switch_page("pages/genstockai_vendors.py")
-
-with col5:
-    if st.button("⚙️ AI Settings", use_container_width=True, key="main_settings"):
-        st.switch_page("pages/genstockai_settings.py")
 
 # System status
 st.markdown("---")
