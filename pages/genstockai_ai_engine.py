@@ -219,7 +219,7 @@ if st.session_state.demo_run and recommendations:
         context = {
             'product': rec.get('product'),
             'weekly_velocity': rec.get('weekly_velocity', 45.2),
-            'current_stock': rec.get('current_stock', 8),
+            'current_stock': raw_stock,#rec.get('current_stock', 8),
             'recommended_quantity': rec.get('recommended_quantity', 180),
             'confidence': rec.get('confidence', 94)
         }
