@@ -69,7 +69,7 @@ def generate_ai_analysis(agent_type: str, context: dict) -> str:
     Feels 100% authentic — perfect for demos and production.
     """
     product = context.get('product', 'Unknown Product')
-    velocity = context.get('weekly_velocity', 0)
+    velocity = context.get('weekly_velocity', 0) or 0.01   # never zero
     stock = context.get('current_stock', 0)
     quantity = context.get('recommended_quantity', 0)
     confidence = context.get('confidence', 88)
