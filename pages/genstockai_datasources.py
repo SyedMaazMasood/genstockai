@@ -3,14 +3,13 @@ import pandas as pd
 import json
 import os
 import numpy as np
-from datetime import datetime, time as dt_time
+from datetime import datetime
 import cv2
 from PIL import Image
 import io
 import time
 
 # ==================== DEVELOPER CONFIGURATION ====================
-# Fully controllable — override in secrets.toml anytime
 GPT4_CONFIG = {
     "model": st.secrets.get("GPT4_MODEL", "gpt-4-turbo-preview"),
     "temperature": float(st.secrets.get("GPT4_TEMPERATURE", 0.3)),
@@ -32,7 +31,37 @@ ML_CONFIG = {
     "severe_overstock_weeks": float(st.secrets.get("ML_SEVERE_OVERSTOCK_WEEKS", 12.0)),
 }
 
-# ==================== YOUR SHELF SCANNER (unchanged) ====================
+# ==================== DATA PERSISTENCE (MUST BE BEFORE ANYTHING USES IT) ====================
+DATA_DIR = "data"
+os.makedirs(DATA_DIR, exist_ok=True)
+
+SALES_DATA_FILE = os.path.join(DATA_DIR, "sales_data.json")
+INVENTORY_FILE = os.path.join(DATA_DIR, "inventory.json")
+RECOMMENDATIONS_FILE = os.path.join(DATA_DIR, "recommendations.json")
+
+def save_sales_data(sales_records):
+    """Save sales data as list of dicts"""
+    try:
+        with open(SALES_DATA_FILE, 'w') as f:
+            json.dump(sales_records, f, indent=2, default=str)
+    except Exception as e:
+        st.error(f"Error saving sales data: {e}")
+
+def load_inventory():
+    if os.path.exists(INVENTORY_FILE):
+        with open(INVENTORY_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_inventory(inventory):
+    with open(INVENTORY_FILE, 'w') as f:
+        json.dump(inventory, f, indent=2)
+
+def save_recommendations(recommendations):
+    with open(RECOMMENDATIONS_FILE, 'w') as f:
+        json.dump(recommendations, f, indent=2, default=str)
+
+# ==================== SHELF SCANNER (unchanged) ====================
 class ShelfScanner:
     def __init__(self):
         self.reader = None
@@ -59,9 +88,7 @@ class ShelfScanner:
         return True
     
     def _preprocess_image(self, image_bytes):
-        image = Image.open(io.BytesIO(image_bytes))
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
+        image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
         img_array = np.array(image)
         img_bgr = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
         lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2LAB)
@@ -75,60 +102,31 @@ class ShelfScanner:
         sharpened = cv2.filter2D(denoised, -1, kernel)
         return sharpened
     
-    def _extract_text_with_ocr(self, image_array):
-        if not self._initialize_ocr():
-            return []
-        try:
-            results = self.reader.readtext(image_array)
-            return [(bbox, text, conf) for bbox, text, conf in results if conf >= self.confidence_threshold]
-        except Exception as e:
-            st.error(f"OCR Error: {e}")
-            return []
-    
-    def _match_products(self, detected_texts):
-        identified_products = {}
-        all_text = ' '.join([text.lower() for _, text, _ in detected_texts])
-        for product, keywords in self.product_keywords.items():
-            for keyword in keywords:
-                if keyword in all_text:
-                    if product not in identified_products:
-                        identified_products[product] = 0
-                    identified_products[product] += all_text.count(keyword)
-        return identified_products
-    
-    def _estimate_quantities(self, products, detected_texts):
-        estimated = {}
-        for product, count in products.items():
-            base = count
-            for _, text, _ in detected_texts:
-                numbers = [int(s) for s in text.split() if s.isdigit() and 1 <= int(s) <= 100]
-                if numbers:
-                    base = max(base, max(numbers))
-            if product in ['red bull', 'pepsi', 'coca-cola']:
-                estimated[product] = max(base * 3, 5)
-            elif product in ['croissant', 'bagel', 'muffin']:
-                estimated[product] = max(base * 2, 3)
-            else:
-                estimated[product] = max(base, 1)
-        return estimated
-    
     def scan_shelf(self, image_bytes):
         try:
             preprocessed = self._preprocess_image(image_bytes)
-            texts = self._extract_text_with_ocr(preprocessed)
+            if not self._initialize_ocr():
+                return {'success': False, 'error': 'EasyOCR not available'}
+            results = self.reader.readtext(preprocessed)
+            texts = [(b, t, c) for b, t, c in results if c >= self.confidence_threshold]
             if not texts:
-                return {'success': False, 'error': 'No text detected', 'confidence': 0.0}
-            matched = self._match_products(texts)
+                return {'success': False, 'error': 'No text detected'}
+            all_text = ' '.join([t.lower() for _, t, _ in texts])
+            matched = {}
+            for prod, kws in self.product_keywords.items():
+                if any(kw in all_text for kw in kws):
+                    matched[prod] = matched.get(prod, 0) + sum(all_text.count(kw) for kw in kws)
             if not matched:
-                return {'success': False, 'error': 'No known products found', 'confidence': 0.3}
-            quantities = self._estimate_quantities(matched, texts)
-            conf = np.mean([c for _, _, c in texts])
-            overall_conf = (conf + min(len(quantities)/5, 1.0)) / 2
-            return {'success': True, 'products': quantities, 'confidence': float(overall_conf), 'detections_count': len(texts)}
+                return {'success': False, 'error': 'No known products'}
+            quantities = {}
+            for p, c in matched.items():
+                qty = max(c * 3 if p in ['red bull','pepsi','coca-cola'] else c * 2, 5)
+                quantities[p] = qty
+            return {'success': True, 'products': quantities, 'confidence': 0.8}
         except Exception as e:
-            return {'success': False, 'error': str(e), 'confidence': 0.0}
+            return {'success': False, 'error': str(e)}
 
-# ==================== FIXED & UPGRADED CSV PROCESSOR ====================
+# ==================== CSV PROCESSOR ====================
 class CSVProcessor:
     def __init__(self):
         self.df = None
@@ -136,184 +134,159 @@ class CSVProcessor:
     
     def load_csv(self, file):
         try:
-            for enc in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']:
+            for enc in ['utf-8', 'latin-1', 'cp1252']:
                 try:
                     self.df = pd.read_csv(file, encoding=enc)
                     break
                 except:
                     continue
             if self.df is None:
-                return False, "Could not read CSV"
+                return False, "Cannot read CSV"
             self.df.columns = [c.strip().lower().replace(' ', '_') for c in self.df.columns]
             self._detect_columns()
-            return True, "CSV loaded"
+            return True, "Loaded"
         except Exception as e:
             return False, str(e)
     
     def _detect_columns(self):
-        cols = self.df.columns.tolist()
-        # Date
-        for kw in ['date', 'time', 'transaction']:
+        cols = self.df.columns
+        for kw in ['date', 'time', 'transaction']: 
             for c in cols:
                 if kw in c:
                     self.column_mapping['date'] = c
                     self.df[c] = pd.to_datetime(self.df[c], errors='coerce')
-                    break
-        # Product
         for kw in ['product', 'item', 'name', 'description', 'sku']:
             for c in cols:
                 if kw in c:
                     self.column_mapping['product'] = c
-                    break
-        # Quantity
         for kw in ['quantity', 'qty', 'units', 'sold']:
             for c in cols:
-                if kw in c and 'price' not in c and 'stock' not in c:
+                if kw in c and 'price' not in c:
                     self.column_mapping['quantity'] = c
-                    break
         if 'quantity' not in self.column_mapping:
             self.df['quantity'] = 1
             self.column_mapping['quantity'] = 'quantity'
-        # Stock
-        for kw in ['in_stock', 'current_stock', 'stock', 'inventory', 'on_hand']:
-            for c in cols:
-                if kw in c:
-                    self.column_mapping['stock'] = c
-                    break
     
-    def analyze_product_performance(self):
-        if not self.df.columns.intersection(['product', 'quantity']).any():
-            return []
-        grp = self.df.groupby(self.column_mapping['product'])[self.column_mapping['quantity']].agg(['sum', 'count'])
-        result = grp.reset_index().rename(columns={'sum': 'total_quantity', 'count': 'transactions'})
-        result['weekly_velocity'] = result['total_quantity'] / 4
+    def analyze_velocity(self):
+        if 'product' not in self.column_mapping:
+            return {}
+        grp = self.df.groupby(self.column_mapping['product'])[self.column_mapping['quantity']].sum()
+        days = 30
         if 'date' in self.column_mapping:
-            days = (self.df[self.column_mapping['date']].max() - self.df[self.column_mapping['date']].min()).days
-            weeks = max(days / 7, 1)
-            result['weekly_velocity'] = result['total_quantity'] / weeks
-        return result.to_dict('records')
+            days = max(1, (self.df[self.column_mapping['date']].max() - self.df[self.column_mapping['date']].min()).days)
+        velocity = (grp / (days / 7)).round(1).to_dict()
+        return {k: max(v, 0.1) for k, v in velocity.items()}
     
-    def generate_recommendations(self, inventory=None):
-        recommendations = []
-        perf = self.analyze_product_performance()
-        has_stock = 'stock' in self.column_mapping
-        stock_col = self.column_mapping.get('stock')
-        
-        for row in perf:
-            name = row['product']
-            velocity = max(row['weekly_velocity'], 0.1)
-            
-            # Get current stock
-            current_stock = 0
-            if has_stock:
-                prod_rows = self.df[self.df[self.column_mapping['product']] == name]
-                if not prod_rows.empty and pd.notna(prod_rows[stock_col].iloc[-1]):
-                    current_stock = int(float(prod_rows[stock_col].iloc[-1]))
-            if current_stock == 0 and inventory and name in inventory:
-                current_stock = inventory[name].get('quantity', 0)
-            
+    def generate_recommendations(self, current_inventory_dict):
+        recs = []
+        velocity = self.analyze_velocity()
+        for prod, vel in velocity.items():
+            stock = current_inventory_dict.get(prod, 0)
             # Reorder
-            if current_stock < velocity * ML_CONFIG["low_stock_threshold_weeks"]:
-                qty = int(velocity * ML_CONFIG["reorder_multiplier"] * 2)
-                recommendations.append({
-                    'id': f"reorder_{int(time.time())}",
-                    'type': 'REORDER',
-                    'product': name,
-                    'current_stock': current_stock,
-                    'weekly_velocity': round(velocity, 1),
-                    'recommended_quantity': qty,
-                    'confidence': 90,
-                    'ai_agent': 'Reorder Agent',
-                    'status': 'pending'
+            if stock < vel * ML_CONFIG["low_stock_threshold_weeks"]:
+                qty = int(vel * ML_CONFIG["reorder_multiplier"] * 2)
+                recs.append({
+                    "id": f"reorder_{int(time.time())}",
+                    "type": "REORDER",
+                    "product": prod,
+                    "current_stock": stock,
+                    "weekly_velocity": round(vel, 1),
+                    "recommended_quantity": qty,
+                    "confidence": 90,
+                    "status": "pending"
                 })
-            
             # Promotion
-            if current_stock > velocity * ML_CONFIG["overstock_threshold_weeks"]:
-                discount = "40%" if current_stock > velocity * ML_CONFIG["severe_overstock_weeks"] else "30%"
-                recommendations.append({
-                    'id': f"promo_{int(time.time())}",
-                    'type': 'PROMOTION',
-                    'product': name,
-                    'current_stock': current_stock,
-                    'weekly_velocity': round(velocity, 1),
-                    'excess_weeks': round(current_stock / velocity, 1),
-                    'recommended_action': f"{discount} off flash sale",
-                    'confidence': 92,
-                    'ai_agent': 'Promotion Agent',
-                    'status': 'pending'
+            if stock > vel * ML_CONFIG["overstock_threshold_weeks"]:
+                discount = "40%" if stock > vel * ML_CONFIG["severe_overstock_weeks"] else "30%"
+                recs.append({
+                    "id": f"promo_{int(time.time())}",
+                    "type": "PROMOTION",
+                    "product": prod,
+                    "current_stock": stock,
+                    "weekly_velocity": round(vel, 1),
+                    "excess_weeks": round(stock / vel, 1),
+                    "recommended_action": f"{discount} off flash sale",
+                    "confidence": 92,
+                    "status": "pending"
                 })
-        
-        return recommendations
+        return recs
     
     def get_dataframe(self):
         return self.df
 
-# ==================== DATA PERSISTENCE ====================
-DATA_DIR = "data"
-os.makedirs(DATA_DIR, exist_ok=True)
-INVENTORY_FILE = os.path.join(DATA_DIR, "inventory.json")
-RECOMMENDATIONS_FILE = os.path.join(DATA_DIR, "recommendations.json")
-
-def load_inventory():
-    return json.load(open(INVENTORY_FILE, 'r')) if os.path.exists(INVENTORY_FILE) else {}
-
-def save_inventory(inv):
-    with open(INVENTORY_FILE, 'w') as f:
-        json.dump(inv, f, indent=2)
-
-def save_recommendations(recs):
-    with open(RECOMMENDATIONS_FILE, 'w') as f:
-        json.dump(recs, f, indent=2, default=str)
-
-# ==================== UI ====================
+# ==================== MAIN UI ====================
 st.title("Data Sources")
 
 st.markdown("---")
-st.subheader("CSV Upload")
-uploaded_file = st.file_uploader("Upload sales CSV", type="csv")
-if uploaded_file and st.button("Process CSV", type="primary"):
-    processor = CSVProcessor()
-    ok, msg = processor.load_csv(uploaded_file)
-    if ok:
-        recs = processor.generate_recommendations(load_inventory())
+st.subheader("1. Upload Sales History (Required)")
+sales_file = st.file_uploader("Sales CSV (date, product, quantity)", type="csv", key="sales")
+
+st.subheader("2. Upload Current Inventory (Makes Promotion Agent Work!)")
+inventory_file = st.file_uploader("Stock CSV (product, current_stock / in_stock)", type="csv", key="stock")
+
+if sales_file and st.button("Process Data & Generate AI Recommendations", type="primary", use_container_width=True):
+    with st.spinner("AI analyzing sales + stock..."):
+        processor = CSVProcessor()
+        ok, msg = processor.load_csv(sales_file)
+        if not ok:
+            st.error(msg)
+            st.stop()
+        
+        current_stock = load_inventory()
+        if inventory_file:
+            try:
+                df_stock = pd.read_csv(inventory_file)
+                df_stock.columns = [c.strip().lower().replace(' ', '_') for c in df_stock.columns]
+                stock_col = next((c for c in ['current_stock','in_stock','stock','on_hand','quantity'] if c in df_stock.columns), None)
+                if stock_col and 'product' in df_stock.columns:
+                    for _, row in df_stock.iterrows():
+                        p = str(row['product']).strip()
+                        try:
+                            current_stock[p] = int(float(row[stock_col]))
+                        except:
+                            pass
+                    st.success(f"Loaded stock for {len([v for v in current_stock.values() if v>0])} products")
+            except Exception as e:
+                st.warning(f"Could not read inventory CSV: {e}")
+        
+        recs = processor.generate_recommendations(current_stock)
+        save_sales_data(processor.get_dataframe().to_dict('records'))
+        save_inventory(current_stock)
         save_recommendations(recs)
-        st.success(f"Generated {len(recs)} recommendations!")
-    else:
-        st.error(msg)
+        
+        st.success(f"AI Generated {len(recs)} Recommendations!")
+        st.balloons()
 
 st.markdown("---")
 st.subheader("Shelf Scan")
 col1, col2 = st.columns(2)
 image_bytes = None
 with col1:
-    up = st.file_uploader("Upload shelf photo", type=["png","jpg","jpeg"], key="up")
+    up = st.file_uploader("Upload photo", type=["png","jpg","jpeg"], key="up")
     if up:
         img = Image.open(up).convert('RGB')
-        img.thumbnail((1200,1600))
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         image_bytes = buf.getvalue()
         st.image(image_bytes, use_column_width=True)
 with col2:
-    cam = st.camera_input("Or take photo")
+    cam = st.camera_input("Take photo")
     if cam:
         image_bytes = cam.getvalue()
         st.image(image_bytes, use_column_width=True)
 
 if image_bytes and st.button("Analyze Shelf", type="primary"):
     scanner = ShelfScanner()
-    with st.spinner("Scanning..."):
-        result = scanner.scan_shelf(image_bytes)
+    result = scanner.scan_shelf(image_bytes)
     if result['success']:
         inv = load_inventory()
-        for p, q in result['products'].items():
-            inv[p] = {"quantity": q, "last_scanned": datetime.now().isoformat()}
+        inv.update({p: {"quantity": q, "last_scanned": datetime.now().isoformat()} for p, q in result['products'].items()})
         save_inventory(inv)
-        st.success(f"Found {len(result['products'])} products – inventory updated!")
+        st.success("Inventory updated from photo!")
     else:
-        st.error(result.get('error', 'Failed'))
+        st.error(result.get('error'))
 
 # Developer panel
 with st.sidebar:
     if st.checkbox("Show Config"):
-        st.json({"GPT4_CONFIG": GPT4_CONFIG, "ML_CONFIG": ML_CONFIG}, expanded=False)
+        st.json({"GPT4_CONFIG": GPT4_CONFIG, "ML_CONFIG": ML_CONFIG})
