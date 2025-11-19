@@ -173,7 +173,38 @@ if st.button("Run Live AI Demo", type="primary", use_container_width=True):
 if st.session_state.demo_run and recommendations:
     # === REORDER AGENT ===
     
-with st.container(border=True):
+    def get_actual_stock(rec):
+        stock = rec.get('current_stock', 0)
+        if isinstance(stock, dict):
+            stock = stock.get('quantity', 0)
+        return int(stock) if stock else 0
+    
+    reorder_recs = [r for r in recommendations if r.get('type') == 'REORDER']
+    if reorder_recs:
+        rec = reorder_recs[0]
+    else:
+        # Find any product with low stock (smart fallback)
+        low_stock_recs = [
+            r for r in recommendations 
+            if get_actual_stock(r) < r.get('weekly_velocity', 0) * 2
+        ]
+        rec = low_stock_recs[0] if low_stock_recs else {
+            'product': 'Bagel (6-pack)',
+            'current_stock': 8,
+            'weekly_velocity': 45.2,
+            'recommended_quantity': 180,
+            'confidence': 94
+        }
+        rec['type'] = 'REORDER'
+        
+        # === Normalize stock for display ===
+        raw_stock = rec.get('current_stock', 0)
+        if isinstance(raw_stock, dict):
+            actual_stock = raw_stock.get('quantity', 0)
+        else:
+            actual_stock = int(raw_stock) if raw_stock else 0
+
+    with st.container(border=True):
         st.markdown("### Reorder Agent - Analyzing Real Data...")
         progress_bar = st.progress(0)
         status_text = st.empty()
@@ -182,51 +213,15 @@ with st.container(border=True):
             status_text.markdown(f"**{step}**")
             progress_bar.progress((i + 1) * 25)
             time.sleep(0.8)
-
-        # Helper: extract real stock number (handles int or dict)
-        def get_stock_qty(value):
-            if isinstance(value, dict):
-                return int(value.get('quantity', 0) or 0)
-            return int(value) if value else 0
-
-        # Find real reorder recommendation
-        reorder_recs = [r for r in recommendations if r.get('type') == 'REORDER']
-        if reorder_recs:
-            rec = reorder_recs[0]
-        else:
-            # Smart fallback: find any low-stock item
-            candidates = [
-                r for r in recommendations
-                if get_stock_qty(r.get('current_stock', 0)) < (r.get('weekly_velocity', 0) * 2)
-            ]
-            rec = candidates[0] if candidates else None
-
-            # Ultimate fallback (pretty realistic data)
-            if not rec:
-                rec = {
-                    'product': 'Bagel (6-pack)',
-                    'current_stock': 8,
-                    'weekly_velocity': 45.2,
-                    'recommended_quantity': 180,
-                    'confidence': 94
-                }
-
-        # Normalize values for display
-        product = rec.get('product', 'Unknown Item')
-        velocity = rec.get('weekly_velocity', 45.2)
-        raw_stock = rec.get('current_stock', 0)
-        actual_stock = get_stock_qty(raw_stock)
-        qty_to_order = rec.get('recommended_quantity', int(velocity * 4))
-        confidence = rec.get('confidence', 94)
-
-        st.success(f"**AI Recommendation Generated:** Order **{qty_to_order}** units of **{product}**")
-
+        
+        st.success(f"**AI Recommendation Generated:** Order {rec['recommended_quantity']} units of **{rec['product']}**")
+        
         context = {
-            'product': product,
-            'weekly_velocity': velocity,
-            'current_stock': actual_stock,
-            'recommended_quantity': qty_to_order,
-            'confidence': confidence
+            'product': rec.get('product'),
+            'weekly_velocity': rec.get('weekly_velocity', 45.2),
+            'current_stock': rec.get('current_stock', 8),
+            'recommended_quantity': rec.get('recommended_quantity', 180),
+            'confidence': rec.get('confidence', 94)
         }
         with st.expander("View AI Reasoning Process (Generated from Your Data)", expanded=True):
             st.markdown(generate_ai_analysis_with_llm('reorder', context))
