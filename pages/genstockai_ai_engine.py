@@ -172,13 +172,23 @@ if st.button("Run Live AI Demo", type="primary", use_container_width=True):
 
 if st.session_state.demo_run and recommendations:
     # === REORDER AGENT ===
+    
+    def get_actual_stock(rec):
+        stock = rec.get('current_stock', 0)
+        if isinstance(stock, dict):
+            stock = stock.get('quantity', 0)
+        return int(stock) if stock else 0
+    
     reorder_recs = [r for r in recommendations if r.get('type') == 'REORDER']
     if reorder_recs:
         rec = reorder_recs[0]
     else:
-        # Smart fallback
-        candidates = [r for r in recommendations if r.get('current_stock', 0) < 20 and r.get('weekly_velocity', 0) > 10]
-        rec = candidates[0].copy() if candidates else {
+        # Find any product with low stock (smart fallback)
+        low_stock_recs = [
+            r for r in recommendations 
+            if get_actual_stock(r) < r.get('weekly_velocity', 0) * 2
+        ]
+        rec = low_stock_recs[0] if low_stock_recs else {
             'product': 'Bagel (6-pack)',
             'current_stock': 8,
             'weekly_velocity': 45.2,
@@ -186,16 +196,23 @@ if st.session_state.demo_run and recommendations:
             'confidence': 94
         }
         rec['type'] = 'REORDER'
+        
+        # === Normalize stock for display ===
+        raw_stock = rec.get('current_stock', 0)
+        if isinstance(raw_stock, dict):
+            actual_stock = raw_stock.get('quantity', 0)
+        else:
+            actual_stock = int(raw_stock) if raw_stock else 0
 
-    with st.container(border=True):
-        st.markdown("### Reorder Agent - Analyzing Real Data...")
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        steps = ["Loading sales history...", "Calculating velocity...", "GPT-4 generating forecast...", "Complete!"]
-        for i, step in enumerate(steps):
-            status_text.markdown(f"**{step}**")
-            progress_bar.progress((i + 1) * 25)
-            time.sleep(0.8)
+    #with st.container(border=True):
+    #    st.markdown("### Reorder Agent - Analyzing Real Data...")
+    #    progress_bar = st.progress(0)
+    #    status_text = st.empty()
+    #    steps = ["Loading sales history...", "Calculating velocity...", "GPT-4 generating forecast...", "Complete!"]
+    #    for i, step in enumerate(steps):
+    #        status_text.markdown(f"**{step}**")
+    #        progress_bar.progress((i + 1) * 25)
+    #        time.sleep(0.8)
         
         st.success(f"**AI Recommendation Generated:** Order {rec['recommended_quantity']} units of **{rec['product']}**")
         
