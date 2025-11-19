@@ -204,22 +204,22 @@ if st.session_state.demo_run and recommendations:
         else:
             actual_stock = int(raw_stock) if raw_stock else 0
 
-    #with st.container(border=True):
-    #    st.markdown("### Reorder Agent - Analyzing Real Data...")
-    #    progress_bar = st.progress(0)
-    #    status_text = st.empty()
-    #    steps = ["Loading sales history...", "Calculating velocity...", "GPT-4 generating forecast...", "Complete!"]
-    #    for i, step in enumerate(steps):
-    #        status_text.markdown(f"**{step}**")
-    #        progress_bar.progress((i + 1) * 25)
-    #        time.sleep(0.8)
+    with st.container(border=True):
+        st.markdown("### Reorder Agent - Analyzing Real Data...")
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        steps = ["Loading sales history...", "Calculating velocity...", "GPT-4 generating forecast...", "Complete!"]
+        for i, step in enumerate(steps):
+            status_text.markdown(f"**{step}**")
+            progress_bar.progress((i + 1) * 25)
+            time.sleep(0.8)
         
         st.success(f"**AI Recommendation Generated:** Order {rec['recommended_quantity']} units of **{rec['product']}**")
         
         context = {
             'product': rec.get('product'),
             'weekly_velocity': rec.get('weekly_velocity', 45.2),
-            'current_stock': rec.get('current_stock', 8),
+            'current_stock': actual_stock, #rec.get('current_stock', 8),
             'recommended_quantity': rec.get('recommended_quantity', 180),
             'confidence': rec.get('confidence', 94)
         }
