@@ -197,12 +197,12 @@ if st.session_state.demo_run and recommendations:
         }
         rec['type'] = 'REORDER'
         
-        # === Normalize stock for display ===
-        raw_stock = rec.get('current_stock', 0)
-        if isinstance(raw_stock, dict):
-            actual_stock = raw_stock.get('quantity', 0)
-        else:
-            actual_stock = int(raw_stock) if raw_stock else 0
+    # === Normalize stock for display ===
+    raw_stock = rec.get('current_stock', 0)
+    if isinstance(raw_stock, dict):
+        actual_stock = raw_stock.get('quantity', 0)
+    else:
+        actual_stock = int(raw_stock) if raw_stock else 0
 
     with st.container(border=True):
         st.markdown("### Reorder Agent - Analyzing Real Data...")
@@ -219,7 +219,7 @@ if st.session_state.demo_run and recommendations:
         context = {
             'product': rec.get('product'),
             'weekly_velocity': rec.get('weekly_velocity', 45.2),
-            'current_stock': raw_stock,#rec.get('current_stock', 8),
+            'current_stock': actual_stock,#rec.get('current_stock', 8),
             'recommended_quantity': rec.get('recommended_quantity', 180),
             'confidence': rec.get('confidence', 94)
         }
