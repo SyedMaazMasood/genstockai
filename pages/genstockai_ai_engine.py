@@ -164,7 +164,6 @@ with col1:
         st.markdown("### **Large Language Models**")
         st.markdown("- **GPT-4**: Demand forecasting & analysis")
         st.markdown("- **Claude 3.5 Sonnet**: Strategic planning")
-        st.markdown("- **Gemini Pro**: Data processing")
 
 with col2:
     with st.container(border=True):

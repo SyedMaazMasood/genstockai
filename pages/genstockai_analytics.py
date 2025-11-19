@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-import time
 
 # ==================== EMBEDDED CONFIG & PROCESSOR ====================
 DATA_DIR = "data"
@@ -158,217 +157,6 @@ class CSVProcessor:
                         })
         
         return trends
-
-# AI TEXT GENERATION FOR Q&A
-def generate_ai_response(question, stats, products, trends):
-    """
-    Generates AI responses based on actual data analysis.
-    Simulates what GPT-4 would respond with given the data context.
-    
-    In production, this would call:
-    response = openai.ChatCompletion.create(
-        model="gpt-4-turbo-preview",
-        temperature=0.3,
-        messages=[{
-            "role": "system",
-            "content": "You are a business intelligence AI analyzing sales data."
-        }, {
-            "role": "user",
-            "content": f"Data: {stats}, Question: {question}"
-        }]
-    )
-    """
-    
-    question_lower = question.lower()
-    
-    # AI analyzes the actual data and generates contextual responses
-    
-    # Best seller analysis
-    if any(word in question_lower for word in ["best", "top", "most", "popular", "seller"]):
-        if products:
-            top_product = max(products, key=lambda x: x['total_quantity'])
-            total_sold = int(top_product['total_quantity'])
-            transactions = int(top_product['transaction_count'])
-            velocity = top_product.get('weekly_velocity', 0)
-            
-            return f"""**AI Sales Analysis - Best Performer:**
-
-🏆 **Top Product: {top_product['product']}**
-
-Performance Metrics:
-• Total Units Sold: {total_sold:,} units
-• Number of Transactions: {transactions:,}
-• Average per Transaction: {top_product.get('avg_quantity', 0):.1f} units
-• Weekly Sales Velocity: {velocity:.1f} units/week
-
-**AI Insight:** This product demonstrates exceptional market demand with consistent sales patterns. The high transaction count ({transactions:,}) indicates broad customer appeal. Based on velocity analysis, this item generates approximately {velocity * 4:.0f} units of monthly volume.
-
-**Strategic Recommendation:** Prioritize inventory management for this SKU. Consider:
-1. Negotiating bulk discounts with suppliers (current volume: {total_sold:,} units)
-2. Ensuring minimum 2-week stock coverage
-3. Exploring promotional opportunities during peak periods
-
-**Confidence:** 96% (based on {transactions} data points)"""
-        return "**AI Response:** Insufficient sales data to determine top product. Please process more transaction history."
-    
-    # Focus/growth analysis
-    elif any(word in question_lower for word in ["focus", "grow", "expand", "priority"]):
-        growing = trends.get('growing_products', [])
-        if growing:
-            top_growing = growing[0]
-            growth_rate = top_growing['growth_rate']
-            
-            # Find product details
-            product_details = next((p for p in products if p['product'] == top_growing['product']), None)
-            
-            if product_details:
-                return f"""**AI Growth Strategy Analysis:**
-
-📈 **Highest Growth Opportunity: {top_growing['product']}**
-
-Growth Metrics:
-• Growth Rate: +{growth_rate:.1f}%
-• Current Weekly Velocity: {product_details.get('weekly_velocity', 0):.1f} units
-• Total Sold: {int(product_details['total_quantity']):,} units
-• Transaction Frequency: {int(product_details['transaction_count']):,}
-
-**AI Trend Analysis:** This product shows statistically significant growth trajectory, indicating:
-1. Increasing customer demand
-2. Successful product-market fit
-3. Potential for revenue expansion
-
-**Data-Driven Recommendations:**
-1. **Inventory Strategy:** Increase stock levels by {int(growth_rate * 0.5)}% to match demand growth
-2. **Marketing:** Allocate additional promotional budget to capitalize on momentum
-3. **Supplier Relations:** Negotiate volume discounts based on projected {int(growth_rate)}% increase
-
-**Projected Impact:** Focusing on this product could increase monthly revenue by ${product_details.get('weekly_velocity', 0) * 4 * 3.5 * (growth_rate/100):.2f}
-
-**Confidence:** 89% (growth trend validated across multiple time periods)"""
-        
-        # If no growing products, analyze top performers
-        if products:
-            top_products = sorted(products, key=lambda x: x['total_quantity'], reverse=True)[:3]
-            product_list = "\n".join([f"• {p['product']}: {int(p['total_quantity']):,} units sold" for p in top_products])
-            
-            return f"""**AI Strategic Focus Analysis:**
-
-Based on current sales data, I recommend focusing on your top performers:
-
-**High-Priority Products:**
-{product_list}
-
-**AI Insight:** While no products show dramatic growth trends, your current top sellers demonstrate stable demand. The optimal strategy is to:
-
-1. **Maintain Excellence:** Ensure consistent availability of top 3 products
-2. **Operational Efficiency:** Streamline reordering processes for these items
-3. **Customer Retention:** These products likely drive repeat purchases
-
-**Data Context:** Analysis based on {stats.get('total_transactions', 0):,} transactions across {stats.get('unique_products', 0)} unique products.
-
-**Recommendation:** Focus on reliability and availability rather than aggressive expansion. Steady performers = sustainable revenue."""
-    
-    # Problem/concern analysis
-    elif any(word in question_lower for word in ["worry", "problem", "concern", "issue", "decline"]):
-        declining = trends.get('declining_products', [])
-        if declining:
-            problem_product = declining[0]
-            decline_rate = problem_product['decline_rate']
-            
-            return f"""**AI Problem Detection Alert:**
-
-⚠️ **Declining Product: {problem_product['product']}**
-
-Concern Metrics:
-• Decline Rate: -{decline_rate:.1f}%
-• Trend: Negative sales trajectory detected
-• Status: Requires immediate attention
-
-**AI Root Cause Analysis:**
-Potential factors contributing to decline:
-1. **Market Saturation:** Customer demand may be shifting
-2. **Quality Issues:** Check for customer feedback patterns
-3. **Price Sensitivity:** May be losing to competitors
-4. **Seasonal Variation:** Verify if decline is cyclical
-
-**Data-Driven Action Plan:**
-1. **Immediate:** Review pricing strategy (price check vs. competitors)
-2. **Short-term:** Implement promotional campaign to boost velocity
-3. **Medium-term:** Survey customers to understand preference shift
-4. **Long-term:** Consider product line optimization
-
-**Financial Impact:** If trend continues, expect {decline_rate:.0f}% revenue reduction from this SKU. Take action within 2-4 weeks.
-
-**Confidence:** 85% (trend validated across multiple periods)"""
-        
-        return f"""**AI Health Check - All Clear:**
-
-✅ **No Major Concerns Detected**
-
-System Analysis:
-• Total Products Monitored: {stats.get('unique_products', 0)}
-• Sales Performance: Within normal variance
-• No products showing >20% decline
-
-**AI Insight:** Your inventory is performing within expected parameters. All products maintain stable or positive trajectories.
-
-**Proactive Recommendations:**
-1. Continue monitoring weekly velocity metrics
-2. Maintain current reorder strategies
-3. Focus on optimizing top performers
-
-**Overall Business Health:** 🟢 Good (no immediate action required)"""
-    
-    # General summary
-    else:
-        total_revenue = stats.get('total_revenue', 0)
-        unique_products = stats.get('unique_products', 0)
-        transactions = stats.get('total_transactions', 0)
-        growing_count = len(trends.get('growing_products', []))
-        declining_count = len(trends.get('declining_products', []))
-        
-        # Calculate health score
-        if growing_count > declining_count:
-            health = "🟢 Excellent"
-            health_desc = "growth outpacing decline"
-        elif growing_count == declining_count:
-            health = "🟡 Stable"
-            health_desc = "balanced growth and decline"
-        else:
-            health = "🟠 Monitor Closely"
-            health_desc = "more declining than growing products"
-        
-        return f"""**AI-Powered Business Intelligence Summary:**
-
-📊 **Overall Performance Analysis**
-
-**Key Metrics:**
-• Total Products: {unique_products}
-• Total Transactions: {transactions:,}
-• Total Revenue: ${total_revenue:,.2f}
-• Average Transaction Value: ${(total_revenue/transactions if transactions > 0 else 0):,.2f}
-
-**Trend Analysis:**
-• Growing Products: {growing_count} (positive momentum)
-• Declining Products: {declining_count} (requires attention)
-• Stable Products: {unique_products - growing_count - declining_count}
-
-**AI Health Assessment:** {health}
-Status: {health_desc}
-
-**Data-Driven Insights:**
-1. **Revenue Concentration:** {'Diversified across multiple products' if unique_products > 5 else 'Concentrated in few products (consider expansion)'}
-2. **Transaction Frequency:** {'Healthy repeat purchase patterns' if transactions > 50 else 'Build customer retention strategies'}
-3. **Growth Trajectory:** {'Positive expansion opportunity' if growing_count > 0 else 'Focus on optimization'}
-
-**Strategic Priorities:**
-1. {'Capitalize on growing products' if growing_count > 0 else 'Stabilize product mix'}
-2. {'Address declining products' if declining_count > 0 else 'Maintain current strategy'}
-3. Optimize inventory turnover for top {min(3, unique_products)} performers
-
-**AI Confidence:** 92% (based on comprehensive data analysis)
-
-💡 **Pro Tip:** Ask me specific questions like "What's my best seller?" or "Which products should I focus on?" for deeper insights."""
 
 # ==================== MAIN PAGE CODE ====================
 st.title("📊 Analytics & Insights")
@@ -565,21 +353,53 @@ with st.container(border=True):
     )
     
     if st.button("🧠 Ask AI", type="primary"):
-        if not user_question.strip():
-            st.warning("Please enter a question first.")
-        else:
-            with st.spinner("🤖 AI analyzing your data..."):
-                time.sleep(1)
+        with st.spinner("AI analyzing your data..."):
+            import time
+            time.sleep(1)
+            
+            if "best" in user_question.lower() or "top" in user_question.lower():
+                if products:
+                    top_product = max(products, key=lambda x: x['total_quantity'])
+                    st.success(f"""
+                    **AI Insight:** Your best-selling product is **{top_product['product']}** with 
+                    {int(top_product['total_quantity'])} units sold across {int(top_product['transaction_count'])} transactions.
+                    
+                    This product shows strong consistent demand and should be prioritized in your inventory management.
+                    """)
+            
+            elif "focus" in user_question.lower():
+                if growing:
+                    top_growing = growing[0]
+                    st.success(f"""
+                    **AI Recommendation:** Focus on **{top_growing['product']}** which is showing 
+                    {top_growing['growth_rate']:.1f}% growth. This indicates increasing customer demand.
+                    
+                    Consider increasing stock levels and promotional efforts for this product.
+                    """)
+                else:
+                    st.info("Based on your data, maintain focus on your current top sellers. No dramatic shifts detected.")
+            
+            elif "worry" in user_question.lower() or "problem" in user_question.lower():
+                if declining:
+                    st.warning(f"""
+                    **AI Alert:** Keep an eye on **{declining[0]['product']}** which shows 
+                    {declining[0]['decline_rate']:.1f}% decline. Consider promotional strategies or 
+                    investigating quality/pricing issues.
+                    """)
+                else:
+                    st.success("No major concerns detected in your sales data. All products are performing within normal ranges.")
+            
+            else:
+                st.info(f"""
+                **AI Summary of Your Business:**
                 
-                # Generate AI response based on ACTUAL data
-                ai_response = generate_ai_response(user_question, stats, products, trends)
+                - You're selling {stats.get('unique_products', 0)} different products
+                - Total revenue: ${stats.get('total_revenue', 0):,.2f}
+                - {len(growing)} products showing growth
+                - {len(declining)} products need attention
                 
-                st.markdown("---")
-                st.markdown("### 🤖 AI Response:")
-                st.markdown(ai_response)
-                
-                st.markdown("---")
-                st.caption(f"💡 **AI Model:** GPT-4 (temperature=0.3) | **Analysis Date:** {time.strftime('%Y-%m-%d %H:%M')} | **Data Points:** {stats.get('total_transactions', 0):,} transactions")
+                Overall health: **{'🟢 Good' if len(growing) > len(declining) else '🟡 Monitor Closely'}**
+                """)
 
 st.markdown("---")
 
