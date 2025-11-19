@@ -202,8 +202,12 @@ for rec in recommendations:
         
         col1, col2, col3 = st.columns([1, 1, 3])
         
+        # Use unique keys combining rec_id and timestamp to avoid duplicates
+        approve_key = f"approve_{rec_id}_{hash(str(rec))}"
+        reject_key = f"reject_{rec_id}_{hash(str(rec))}"
+        
         with col1:
-            if st.button("✅ Approve", key=f"approve_{rec_id}", type="primary", use_container_width=True):
+            if st.button("✅ Approve", key=approve_key, type="primary", use_container_width=True):
                 for i, r in enumerate(recommendations):
                     if r.get('id', str(r.get('product', ''))) == rec_id:
                         recommendations[i]['status'] = 'approved'
@@ -263,7 +267,7 @@ Thank you!
                 st.rerun()
         
         with col2:
-            if st.button("❌ Reject", key=f"reject_{rec_id}", use_container_width=True):
+            if st.button("❌ Reject", key=reject_key, use_container_width=True):
                 for i, r in enumerate(recommendations):
                     if r.get('id', str(r.get('product', ''))) == rec_id:
                         recommendations[i]['status'] = 'rejected'
