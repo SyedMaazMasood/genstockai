@@ -310,7 +310,7 @@ if not sales_data or not recommendations:
 if st.button("▶️ Run Live AI Analysis Demo", type="primary", use_container_width=True, key="run_demo"):
     
     # Get real recommendation data
-    reorder_recs = [r for r in recommendations if r.get('type') == 'REORDER']
+    reorder_recs = [r for r in recommendations if r.get('type') == 'REORDER'and r.get('weekly_velocity', 0) > 0.5 and r.get('current_stock', 0) < 50]
     
     # ============================================================
     # AGENT 1: REORDER AGENT WITH REAL DATA
@@ -390,9 +390,11 @@ response = openai.ChatCompletion.create(
 
 # Response generated above using this exact prompt structure
                 """, language="python")
-    
+    else:
+        with st.container(border=True):
+            st.info("No urgent reorder needed right now – all fast-moving items are well-stocked!")
     # ============================================================
-    # AGENT 2: PROMOTION AGENT WITH REAL DATA
+    # AGENT 2: PROMOTION AGENT – Smart version with realistic fallback
     # ============================================================
     with st.container(border=True):
         st.markdown("### Promotion Agent - Analyzing Real Data...")
@@ -412,32 +414,36 @@ response = openai.ChatCompletion.create(
             progress_bar2.progress((i + 1) * 20)
             time.sleep(0.6)
         
-        # Smart fallback logic
-        promo_recs = [r for r in recommendations if r.get('type') == 'PROMOTION']
-        if promo_recs:
-            rec = promo_recs[0]
+        # SMART FILTER: Only show real overstock situations
+        promo_candidates = [
+            r for r in recommendations
+            if r.get('current_stock', 0) > 60 and r.get('weekly_velocity', 0) < 15
+        ]
+        
+        if promo_candidates:
+            rec = promo_candidates[0].copy()
+            rec['type'] = 'PROMOTION'  # Force trigger for AI function
+            product_name = rec.get('product', 'Overstocked Item')
+            st.success(f"**AI Recommendation Generated:** Promotion needed for **{product_name}**")
         else:
-            # Find any overstocked item
-            candidates = [r for r in recommendations 
-                         if r.get('current_stock', 0) > 60 and r.get('weekly_velocity', 0) < 15]
-            if candidates:
-                rec = candidates[0].copy()
-            else:
-                rec = {
-                    'product': 'Greek Yogurt 500g',
-                    'current_stock': 142,
-                    'weekly_velocity': 7.1,
-                    'confidence': 92
-                }
-            rec['type'] = 'PROMOTION'  # Force trigger
-        
-        st.success(f"**AI Recommendation Generated:** Promotion needed for **{rec['product']}**")
-        
+            # Beautiful fallback when no real overstock exists
+            rec = {
+                'product': 'Greek Yogurt 500g',
+                'current_stock': 142,
+                'weekly_velocity': 7.1,
+                'confidence': 92
+            }
+            rec['type'] = 'PROMOTION'
+            product_name = rec['product']
+            st.success(f"**AI Recommendation Generated:** Promotion needed for **{product_name}**")
+            st.info("No critical overstock detected right now → showing a realistic example based on common retail patterns.")
+
+        # Context for AI generation
         promo_context = {
             'product': rec.get('product', 'Unknown'),
-            'stock': rec.get('current_stock', 120),
-            'weekly_velocity': rec.get('weekly_velocity', 6.5),
-            'confidence': rec.get('confidence', 91),
+            'stock': rec.get('current_stock', 140),
+            'weekly_velocity': rec.get('weekly_velocity', 7.1),
+            'confidence': rec.get('confidence', 92),
             'data_points': len(sales_data)
         }
         
@@ -447,74 +453,91 @@ response = openai.ChatCompletion.create(
             
             st.markdown("---")
             st.code(f"""
-# REAL AI CALL SIMULATION (Claude 3.5)
+# REAL AI CALL SIMULATION (Claude 3.5 Sonnet)
+client = anthropic.Anthropic()
 message = client.messages.create(
     model="claude-3-5-sonnet-20241022",
     temperature=0.2,
-    messages=[{{ "role": "user", "content": "Design promotion for {rec['product']} with {rec.get('current_stock')} units in stock..." }}]
+    max_tokens=1000,
+    messages=[
+        {{ "role": "user", "content": "Design a revenue-recovery promotion for {rec['product']} with {rec.get('current_stock')} units in stock and only {rec.get('weekly_velocity'):.1f} units moving per week." }}
+    ]
 )
+# Response above generated using this exact prompt
             """, language="python")
     
     # ============================================================
     # AGENT 3: NEGOTIATION AGENT WITH SUPPLIER DATA
     # ============================================================
-    with st.container(border=True):
-        st.markdown("### 💬 Negotiation Agent - Drafting Real Email...")
-        progress_bar3 = st.progress(0)
-        status_text3 = st.empty()
-        
-        steps3 = [
-            "Web scraping competitor prices...",
-            "Analyzing supplier contracts...",
-            "Generating negotiation email with GPT-4...",
-            "Calculating potential savings...",
-            "✅ Analysis Complete!"
-        ]
-        
-        for i, step in enumerate(steps3):
-            status_text3.markdown(f"**{step}**")
-            progress_bar3.progress((i + 1) * 20)
-            time.sleep(0.6)
-        
-        # Use REAL recommendation for negotiation context
-        nego_rec = None
-        for r in recommendations:
-            if r.get('type') in ['NEGOTIATION', 'PRICE_OPTIMIZATION']:
-                nego_rec = r
-                break
-        if not nego_rec and reorder_recs:
-            nego_rec = reorder_recs[0]
-        
-        product = nego_rec.get('product', 'Coffee Beans') if nego_rec else 'Coffee Beans'
-        current_price = nego_rec.get('current_price', 12.50)
-        competitor_price = nego_rec.get('competitor_price', current_price * 0.95)
-        volume = nego_rec.get('recommended_quantity', 40)
-        supplier = nego_rec.get('supplier', 'Peak Coffee')
-        
-        savings_per_order = round((current_price - competitor_price) * volume, 2)
-        annual_savings = round(savings_per_order * 12, 2)
+    
+    # === SMART NEGOTIATION AGENT (only show if real volume exists) ===
+    nego_candidates = [r for r in recommendations if r.get('recommended_quantity', 0) > 30 and r.get('weekly_velocity', 0) > 5]
 
-        st.success(f"**AI Recommendation Generated:** Negotiate better pricing for **{product}**")
+    if nego_candidates:
+        nego_rec = nego_candidates[0]
+        # ... existing negotiation code ...
+        with st.container(border=True):
+            st.markdown("### 💬 Negotiation Agent - Drafting Real Email...")
+            progress_bar3 = st.progress(0)
+            status_text3 = st.empty()
 
-        # Prepare REAL negotiation context
-        neg_context = {
-            'product': product,
-            'supplier': supplier,
-            'current_price': current_price,
-            'competitor_price': competitor_price,
-            'volume': volume,
-            'savings_per_order': savings_per_order,
-            'annual_savings': annual_savings
-        }
+            steps3 = [
+                "Web scraping competitor prices...",
+                "Analyzing supplier contracts...",
+                "Generating negotiation email with GPT-4...",
+                "Calculating potential savings...",
+                "✅ Analysis Complete!"
+            ]
         
-        with st.expander("View AI-Generated Email (Created by GPT-4)", expanded=True):
-            # REAL AI-generated negotiation email
-            ai_email = generate_ai_analysis_with_llm('negotiation', neg_context)
-            st.markdown(ai_email)
-            
-            st.markdown("---")
-            st.info(f"**Potential Savings:** ${savings_per_order:,} per order → **${annual_savings:,}/year**")
-            st.caption("This email was generated using real purchase data, competitor pricing, and volume trends.")
+            for i, step in enumerate(steps3):
+                status_text3.markdown(f"**{step}**")
+                progress_bar3.progress((i + 1) * 20)
+                time.sleep(0.6)
+
+            # Use REAL recommendation for negotiation context
+            nego_rec = None
+            for r in recommendations:
+                if r.get('type') in ['NEGOTIATION', 'PRICE_OPTIMIZATION']:
+                    nego_rec = r
+                    break
+            if not nego_rec and reorder_recs:
+                nego_rec = reorder_recs[0]
+
+            product = nego_rec.get('product', 'Coffee Beans') if nego_rec else 'Coffee Beans'
+            current_price = nego_rec.get('current_price', 12.50)
+            competitor_price = nego_rec.get('competitor_price', current_price * 0.95)
+            volume = nego_rec.get('recommended_quantity', 40)
+            supplier = nego_rec.get('supplier', 'Peak Coffee')
+
+            savings_per_order = round((current_price - competitor_price) * volume, 2)
+            annual_savings = round(savings_per_order * 12, 2)
+
+            st.success(f"**AI Recommendation Generated:** Negotiate better pricing for **{product}**")
+
+            # Prepare REAL negotiation context
+            neg_context = {
+                'product': product,
+                'supplier': supplier,
+                'current_price': current_price,
+                'competitor_price': competitor_price,
+                'volume': volume,
+                'savings_per_order': savings_per_order,
+                'annual_savings': annual_savings
+            }
+        
+            with st.expander("View AI-Generated Email (Created by GPT-4)", expanded=True):
+                # REAL AI-generated negotiation email
+                ai_email = generate_ai_analysis_with_llm('negotiation', neg_context)
+                st.markdown(ai_email)
+
+                st.markdown("---")
+                st.info(f"**Potential Savings:** ${savings_per_order:,} per order → **${annual_savings:,}/year**")
+                st.caption("This email was generated using real purchase data, competitor pricing, and volume trends.")
+    else:
+        with st.container(border=True):
+            st.success("No high-volume items ready for supplier negotiation at this time.")
+    
+
 
 else:
     st.info("👆 Click the button above to see AI analyze your actual sales data")
