@@ -206,7 +206,24 @@ st.markdown("Connect your data sources to enable AI-powered recommendations.")
 st.markdown("---")
 
 # ==================== CSV UPLOAD ====================
+st.subheader("Manual Upload")
+st.markdown("Upload your sales report in CSV format for AI analysis.")
 
+with st.expander("📋 CSV Format Guide (AI Auto-Detects!)"):
+    st.markdown("""
+    **The AI will automatically detect your CSV format!**
+    
+    **Minimum Required:**
+    - Product/Item name
+    - Quantity (optional - will assume 1 if missing)
+    
+    **Recommended:**
+    - Date/Time
+    - Price or Total
+    
+    The AI will figure it out! 🤖
+    """)
+    
 uploaded_file = st.file_uploader("Upload your CSV Sales Report", type=["csv"], key="csv_uploader")
 
 if uploaded_file is not None:
