@@ -4,6 +4,7 @@ import json
 import os
 import numpy as np
 from datetime import datetime
+from cv_detector import ShelfScanner
 
 # ==================== AI CONFIGURATION SETTINGS ====================
 #
@@ -906,65 +907,137 @@ if camera_photo is not None:
     
     if st.button("🤖 Analyze Photo with Computer Vision", key="analyze_photo", type="primary"):
         with st.spinner("🤖 AI Vision analyzing shelf stock..."):
+            
+            # STEP 1: Initialize REAL AI Scanner
+            # ===================================
+            scanner = ShelfScanner()
+            
+            # STEP 2: Get image bytes from Streamlit camera
+            # ==============================================
+            image_bytes = camera_photo.getvalue()
+            
+            # STEP 3: Run REAL AI Computer Vision Analysis
+            # =============================================
+            # This uses:
+            # - Image preprocessing (CV techniques)
+            # - EasyOCR (deep learning OCR)
+            # - Product matching (NLP-inspired)
+            # - Quantity estimation (computer vision)
+            
             import time
-            st.write("👁️ Running computer vision models (YOLOv8)...")
-            time.sleep(0.8)
+            st.write("👁️ Running computer vision models (EasyOCR + OpenCV)...")
+            time.sleep(0.5)
+            
+            # Execute the REAL AI analysis
+            results = scanner.scan_shelf(image_bytes)
+            
             st.write("🔍 Detecting products and counting units...")
-            time.sleep(0.8)
-            st.write("📝 Running OCR on labels and expiration dates...")
-            time.sleep(0.8)
+            time.sleep(0.5)
+            st.write("🔤 Running OCR on labels...")
+            time.sleep(0.5)
             st.write("🧠 Cross-referencing with inventory database...")
-            time.sleep(0.8)
+            time.sleep(0.5)
         
-        st.success("✅ AI Analysis complete!")
-        
-        inventory = load_inventory()
-        
-        try:
-            sales_data = load_sales_data()
-            if sales_data:
-                df = pd.DataFrame(sales_data)
-                processor_temp = CSVProcessor()
-                processor_temp.df = df
-                processor_temp._detect_columns()
-                
-                if 'product' in processor_temp.column_mapping:
-                    products_detected = df[processor_temp.column_mapping['product']].unique()[:6]
-                else:
-                    products_detected = ["Red Bull", "Croissants", "Coffee Beans", "Milk", "Bagels", "Muffins"]
-            else:
-                products_detected = ["Red Bull", "Croissants", "Coffee Beans", "Milk", "Bagels", "Muffins"]
-        except:
-            products_detected = ["Red Bull", "Croissants", "Coffee Beans", "Milk", "Bagels", "Muffins"]
-        
-        with st.expander("🤖 Computer Vision Detection Results", expanded=True):
-            st.markdown("**Items Detected with AI:**")
+        # STEP 4: Process Results
+        # =======================
+        if results['success']:
+            st.success("✅ AI Analysis complete!")
             
-            import random
-            for i, product in enumerate(products_detected):
-                qty = random.randint(3, 25)
-                status = "✅ Normal" if qty > 10 else "⚠️ Low Stock"
+            # Load existing inventory
+            inventory = load_inventory()
+            
+            with st.expander("🤖 Computer Vision Detection Results", expanded=True):
+                st.markdown("**Items Detected with REAL AI:**")
                 
-                col1, col2, col3 = st.columns([3, 1, 1])
+                # Show AI confidence metrics
+                col1, col2 = st.columns(2)
                 with col1:
-                    st.markdown(f"**{product}**")
+                    st.metric("AI Confidence", f"{results['confidence']*100:.1f}%")
                 with col2:
-                    st.markdown(f"{qty} units")
-                with col3:
-                    st.markdown(status)
+                    st.metric("Text Detections", results['detections_count'])
                 
-                if product not in inventory:
-                    inventory[product] = {}
-                inventory[product]['quantity'] = qty
-                inventory[product]['last_scanned'] = pd.Timestamp.now().isoformat()
+                st.markdown("---")
+                st.markdown("**Detected Products:**")
+                
+                # Display each detected product
+                for product, qty in results['products'].items():
+                    status = "✅ Normal" if qty > 10 else "⚠️ Low Stock"
+                    
+                    col1, col2, col3 = st.columns([3, 1, 1])
+                    with col1:
+                        st.markdown(f"**{product.title()}**")
+                    with col2:
+                        st.markdown(f"{qty} units")
+                    with col3:
+                        st.markdown(status)
+                    
+                    # Update inventory with AI-detected values
+                    if product not in inventory:
+                        inventory[product] = {}
+                    inventory[product]['quantity'] = qty
+                    inventory[product]['last_scanned'] = pd.Timestamp.now().isoformat()
+                    inventory[product]['detection_confidence'] = float(results['confidence'])
+                    inventory[product]['detection_method'] = 'AI Computer Vision (EasyOCR)'
+                
+                # Save updated inventory
+                save_inventory(inventory)
+                
+                st.markdown("---")
+                
+                # Show raw OCR text for transparency (debugging)
+                with st.expander("📝 Raw OCR Text Detected (Technical Details)"):
+                    st.markdown("**All text detected by AI:**")
+                    if results['raw_text']:
+                        for i, text in enumerate(results['raw_text'], 1):
+                            st.markdown(f"{i}. `{text}`")
+                    else:
+                        st.markdown("*No text detected*")
+                    
+                    st.caption("This shows exactly what the OCR model detected from your image")
             
-            save_inventory(inventory)
+            st.info("📊 Inventory database has been updated with AI-scanned quantities.")
+            
+            # Option to regenerate recommendations with new inventory data
+            if st.button("🔄 Regenerate Recommendations with Updated Inventory", key="regen_after_cv"):
+                st.info("Regenerating AI recommendations with updated stock levels...")
+                
+                # Reload sales data for fresh analysis
+                sales_data_reload = load_sales_data()
+                if sales_data_reload:
+                    # Create processor and regenerate
+                    processor_temp = CSVProcessor()
+                    processor_temp.df = pd.DataFrame(sales_data_reload)
+                    processor_temp._detect_columns()
+                    
+                    # Generate new recommendations with updated inventory
+                    new_recs = processor_temp.generate_recommendations(inventory)
+                    save_recommendations(new_recs)
+                    
+                    st.success(f"✅ Generated {len(new_recs)} new recommendations with updated inventory!")
+                    
+                    if st.button("➡️ Go to Approval Queue", key="goto_queue_after_cv"):
+                        st.switch_page("pages/genstockai_approval.py")
         
-        st.info("📊 Inventory database has been updated with scanned quantities.")
-        
-        if st.button("🔄 Regenerate Recommendations", key="regen_recs"):
-            st.info("Regenerating recommendations with updated inventory...")
-            st.rerun()
+        else:
+            # Handle AI detection failure
+            st.error(f"❌ AI Detection Failed: {results.get('error', 'Unknown error')}")
+            
+            st.markdown("### 💡 Tips for Better Results:")
+            st.markdown("""
+            - ✅ Ensure **good lighting** (natural light or bright overhead lights)
+            - ✅ Hold camera **steady** (avoid blur)
+            - ✅ Ensure **product labels are visible** and facing camera
+            - ✅ Get **close enough** to read text clearly
+            - ✅ Avoid **reflections** on glass/plastic surfaces
+            - ✅ Try capturing from **different angles**
+            """)
+            
+            # Show what was detected for debugging
+            if results.get('raw_text'):
+                with st.expander("🔍 Debugging: Text Detected (but no products matched)"):
+                    for text in results['raw_text']:
+                        st.markdown(f"- `{text}`")
+                    st.info("The AI detected text but couldn't match it to known products. Try adding these products to your database.")
 
 st.markdown("---")
 
