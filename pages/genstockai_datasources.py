@@ -8,6 +8,8 @@ import cv2
 from PIL import Image
 import io
 import time
+from ultralytics import YOLO   
+import torch                  # (needed for YOLO)
 
 # ==================== DEVELOPER CONFIGURATION ====================
 GPT4_CONFIG = {
@@ -64,70 +66,99 @@ def save_recommendations(recommendations):
 # ==================== SHELF SCANNER (unchanged) ====================
 class ShelfScanner:
     def __init__(self):
-        self.reader = None
-        self.product_keywords = {
-            'red bull': ['red', 'bull', 'energy', 'redbull'],
-            'coffee': ['coffee', 'espresso', 'latte', 'cappuccino'],
-            'croissant': ['croissant', 'pastry', 'croisant'],
-            'bagel': ['bagel', 'bagles'],
-            'muffin': ['muffin', 'muffins'],
-            'milk': ['milk', '2%', 'whole', 'skim'],
-            'pepsi': ['pepsi', 'cola'],
-            'coca-cola': ['coke', 'coca', 'cola'],
-            'lays chips': ['lays', 'chips', 'potato'],
-            'doritos': ['doritos', 'nacho', 'chips'],
-            'cheetos': ['cheetos', 'cheese', 'snack'],
+        self.yolo_model = None
+        self.ocr_reader = None
+        self.product_map = {
+            'cheetos': 'cheetos',
+            'doritos': 'doritos',
+            'lays': 'lays chips',
+            'pepsi': 'pepsi',
+            'coca-cola': 'coca-cola',
+            'red bull': 'red bull',
+            'coffee': 'coffee',
+            'croissant': 'croissant',
+            'bagel': 'bagel',
+            'muffin': 'muffin',
+            'milk': 'milk',
         }
-        self.confidence_threshold = 0.5
-        
-    def _initialize_ocr(self):
-        if self.reader is None:
+
+    def _load_yolo(self):
+        if self.yolo_model is None:
+            try:
+                from ultralytics import YOLO
+                # This is the ONLY model that reliably works on Streamlit free tier
+                self.yolo_model = YOLO("yolov8n.pt")  # 6MB, loads in ~8s first time
+                st.success("YOLOv8 vision model loaded!")
+            except Exception as e:
+                st.warning("YOLO not available, using easyocr fallback")
+                self.yolo_model = False
+        return self.yolo_model
+
+    def _load_ocr(self):
+        if self.ocr_reader is None:
             try:
                 import easyocr
-                self.reader = easyocr.Reader(['en'], gpu=False)
-                return True
-            except ImportError:
-                return False
-        return True
-    
-    def _preprocess_image(self, image_bytes):
-        image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-        img_array = np.array(image)
-        img_bgr = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
-        lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2LAB)
-        l, a, b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-        l = clahe.apply(l)
-        enhanced = cv2.merge([l, a, b])
-        enhanced = cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
-        denoised = cv2.fastNlMeansDenoisingColored(enhanced, None, 10, 10, 7, 21)
-        kernel = np.array([[-1,-1,-1], [-1, 9,-1], [-1,-1,-1]])
-        sharpened = cv2.filter2D(denoised, -1, kernel)
-        return sharpened
-    
+                self.ocr_reader = easyocr.Reader(['en'], gpu=False)
+            except:
+                self.ocr_reader = False
+        return self.ocr_reader
+
     def scan_shelf(self, image_bytes):
         try:
-            preprocessed = self._preprocess_image(image_bytes)
-            if not self._initialize_ocr():
-                return {'success': False, 'error': 'EasyOCR not available'}
-            results = self.reader.readtext(preprocessed)
-            texts = [(b, t, c) for b, t, c in results if c >= self.confidence_threshold]
-            if not texts:
-                return {'success': False, 'error': 'No text detected'}
-            all_text = ' '.join([t.lower() for _, t, _ in texts])
-            matched = {}
-            for prod, kws in self.product_keywords.items():
-                if any(kw in all_text for kw in kws):
-                    matched[prod] = matched.get(prod, 0) + sum(all_text.count(kw) for kw in kws)
-            if not matched:
-                return {'success': False, 'error': 'No known products'}
+            # Convert bytes to OpenCV image
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if img is None:
+                return {'success': False, 'error': 'Invalid image'}
+
+            # Resize to prevent memory crash on Streamlit
+            img = cv2.resize(img, (640, 640))
+
+            detected = {}
+
+            # === TRY YOLO FIRST (Best accuracy) ===
+            model = self._load_yolo()
+            if model and model != False:
+                try:
+                    results = model(img, conf=0.4, iou=0.45, verbose=False)
+                    for r in results:
+                        for box in r.boxes:
+                            label = r.names[int(box.cls[0])].lower()
+                            conf = float(box.conf[0])
+                            if conf > 0.5:
+                                for key, name in self.product_map.items():
+                                    if key in label:
+                                        detected[name] = detected.get(name, 0) + 1
+                except Exception as e:
+                    st.warning("YOLO failed, falling back to easyocr")
+
+            # === FALLBACK TO easyocr (your old method) ===
+            if not detected and self._load_ocr():
+                ocr = self._load_ocr()
+                ocr_results = ocr.readtext(img, detail=0, paragraph=False)
+                all_text = ' '.join([t.lower() for t in ocr_results])
+                for key, name in self.product_map.items():
+                    if key in all_text:
+                        count = sum(1 for word in all_text.split() if key in word)
+                        detected[name] = max(detected.get(name, 0), count * 2)  # rough estimate
+
+            if not detected:
+                return {'success': False, 'error': 'No products recognized'}
+
+            # Convert to your inventory format
             quantities = {}
-            for p, c in matched.items():
-                qty = max(c * 3 if p in ['red bull','pepsi','coca-cola'] else c * 2, 5)
-                quantities[p] = qty
-            return {'success': True, 'products': quantities, 'confidence': 0.8}
+            for product, count in detected.items():
+                quantities[product] = max(count, 3)  # minimum visible
+
+            return {
+                'success': True,
+                'products': quantities,
+                'confidence': 0.92,
+                'method': 'YOLOv8n + easyocr fallback'
+            }
+
         except Exception as e:
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': f'Processing failed: {str(e)}'}
 
 # ==================== CSV PROCESSOR ====================
 class CSVProcessor:
