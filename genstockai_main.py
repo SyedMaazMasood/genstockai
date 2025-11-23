@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import streamlit as st
 import json
 import os
@@ -36,12 +37,29 @@ def load_vendors():
             return json.load(f)
     return []
 
+# ==================== CHECK AI STATUS ====================
+AI_PROVIDER = st.secrets.get("AI_PROVIDER", "groq").lower()
+AI_STATUS = "🟢 Active" if AI_PROVIDER in ["groq", "openai"] else "🔴 Not Configured"
+AI_NAME = f"{AI_PROVIDER.upper()}" if AI_PROVIDER in ["groq", "openai"] else "None"
+IS_FREE = AI_PROVIDER == "groq"
+
 # ==================== MAIN PAGE CODE ====================
 
 # Sidebar
 st.sidebar.title("GenStockAI")
 st.sidebar.markdown("---")
 st.sidebar.info("🤖 AI-Powered Inventory Assistant for Small Businesses")
+
+# Show AI provider in sidebar
+st.sidebar.markdown("### 🤖 AI Status")
+if AI_PROVIDER == "groq":
+    st.sidebar.success(f"{AI_STATUS} - {AI_NAME} (FREE)")
+elif AI_PROVIDER == "openai":
+    st.sidebar.success(f"{AI_STATUS} - {AI_NAME} (PAID)")
+else:
+    st.sidebar.error(f"{AI_STATUS}")
+
+st.sidebar.markdown("---")
 
 # Load data
 recommendations = load_recommendations()
@@ -54,6 +72,14 @@ has_data = len(sales_data) > 0
 # Main page content
 st.title("🏠 GenStockAI Dashboard")
 st.markdown("### Your AI-Powered Inventory Management Assistant")
+
+# AI Status Banner
+if AI_PROVIDER == "groq":
+    st.success(f"✅ **AI Engine Active:** Groq Llama 3.1 (70B) - FREE & Unlimited")
+elif AI_PROVIDER == "openai":
+    st.info(f"✅ **AI Engine Active:** OpenAI GPT-4o-mini - Paid API (Switch to Groq for free)")
+else:
+    st.warning("⚠️ **AI Not Configured:** Add GROQ_API_KEY or OPENAI_API_KEY to secrets.toml")
 
 if not has_data:
     st.warning("⚠️ **Get Started:** Upload your sales data to begin receiving AI-powered recommendations!")
@@ -135,9 +161,20 @@ with status_col1:
 with status_col2:
     st.markdown("**GenAI Agents Active:**")
     agent_status = "✅" if has_data else "⏸️"
-    st.markdown(f"- {agent_status} 🤖 Reorder Agent (GPT-4 Powered)")
-    st.markdown(f"- {agent_status} 🤖 Promotion Agent (Claude Powered)")
-    st.markdown(f"- {agent_status} 🤖 Negotiation Agent (LLM-based)")
+    
+    # Show actual AI provider
+    if AI_PROVIDER == "groq":
+        st.markdown(f"- {agent_status} 🤖 Reorder Agent (Groq Llama 3.1 - FREE)")
+        st.markdown(f"- {agent_status} 🤖 Promotion Agent (Groq Llama 3.1 - FREE)")
+        st.markdown(f"- {agent_status} 🤖 Analysis Engine (Groq - FREE)")
+    elif AI_PROVIDER == "openai":
+        st.markdown(f"- {agent_status} 🤖 Reorder Agent (OpenAI GPT-4o-mini - PAID)")
+        st.markdown(f"- {agent_status} 🤖 Promotion Agent (OpenAI GPT-4o-mini - PAID)")
+        st.markdown(f"- {agent_status} 🤖 Analysis Engine (OpenAI - PAID)")
+    else:
+        st.markdown(f"- ⚪ 🤖 Reorder Agent (Not configured)")
+        st.markdown(f"- ⚪ 🤖 Promotion Agent (Not configured)")
+        st.markdown(f"- ⚪ 🤖 Analysis Engine (Not configured)")
 
 # Add AI insights section
 st.markdown("---")
@@ -151,7 +188,14 @@ if has_data:
         
         st.markdown(f"- 📊 Analyzed {transaction_count} sales transactions using ML models")
         st.markdown(f"- 🔍 Identified {pending_recs} optimization opportunities via AI analysis")
-        st.markdown(f"- 💡 Generated recommendations using GPT-4 and Claude")
+        
+        if AI_PROVIDER == "groq":
+            st.markdown(f"- 💡 Generated recommendations using Groq Llama 3.1 (FREE)")
+        elif AI_PROVIDER == "openai":
+            st.markdown(f"- 💡 Generated recommendations using OpenAI GPT-4o-mini (PAID)")
+        else:
+            st.markdown(f"- 💡 Using rule-based recommendations (AI not configured)")
+        
         st.markdown("- 📈 Predicted demand trends with 85-95% confidence")
 else:
     with st.container(border=True):
@@ -176,4 +220,5 @@ if has_data or pending_recs > 0:
 
 # Footer
 st.markdown("---")
-st.caption("GenStockAI © 2025 | Powered by GPT-4, Claude & Advanced ML | Built for Small Business Owners")
+ai_credit = "Groq Llama 3.1 (FREE)" if AI_PROVIDER == "groq" else "OpenAI GPT-4o-mini" if AI_PROVIDER == "openai" else "Rule-based Logic"
+st.caption(f"GenStockAI © 2025 | Powered by {ai_credit} & YOLOv8 Computer Vision | Built for Small Business Owners")

@@ -10,23 +10,52 @@ import io
 import time
 from ultralytics import YOLO
 import torch
-from openai import OpenAI
 
-# ==================== AI CONFIGURATION ====================
-try:
-    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-    AI_ENABLED = True
-    st.sidebar.success("✅ OpenAI API Connected!")
-except Exception as e:
-    st.sidebar.warning(f"⚠️ OpenAI API Error: {e}")
-    AI_ENABLED = False
+# ==================== AI PROVIDER CONFIGURATION ====================
+"""
+DUAL AI SYSTEM: Switch between Groq (FREE) and OpenAI (PAID)
 
-GPT4_CONFIG = {
-    "model": "gpt-4o-mini",  # Changed to gpt-4o-mini (you have access to this!)
-    "temperature": 0.3,
-    "max_tokens": 500,
-}
+To switch providers, update secrets.toml:
+    AI_PROVIDER = "groq"     # FREE - Recommended for development
+    AI_PROVIDER = "openai"   # PAID - Use when you have credits
 
+Groq: Free, fast Llama 3.1 (70B) - comparable to GPT-4
+OpenAI: Paid GPT-4o-mini - slightly better quality but costs money
+"""
+
+AI_PROVIDER = st.secrets.get("AI_PROVIDER", "groq").lower()
+AI_ENABLED = False
+ai_client = None
+
+# Try to initialize the selected AI provider
+if AI_PROVIDER == "groq":
+    try:
+        from groq import Groq
+        ai_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+        AI_ENABLED = True
+        AI_MODEL = "llama-3.1-70b-versatile"  # Groq's best free model
+        st.sidebar.success(f"✅ AI Active: Groq (FREE)")
+    except Exception as e:
+        st.sidebar.error(f"❌ Groq Error: {e}")
+        st.sidebar.info("💡 Add GROQ_API_KEY to secrets.toml")
+
+elif AI_PROVIDER == "openai":
+    try:
+        from openai import OpenAI
+        ai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+        AI_ENABLED = True
+        AI_MODEL = "gpt-4o-mini"  # OpenAI's cheapest GPT-4 model
+        st.sidebar.success(f"✅ AI Active: OpenAI GPT-4o-mini (PAID)")
+        st.sidebar.warning("⚠️ Using paid API - costs apply")
+    except Exception as e:
+        st.sidebar.error(f"❌ OpenAI Error: {e}")
+        st.sidebar.info("💡 Switch to Groq (free) in secrets.toml")
+
+else:
+    st.sidebar.error(f"❌ Invalid AI_PROVIDER: {AI_PROVIDER}")
+    st.sidebar.info("Set AI_PROVIDER to 'groq' or 'openai'")
+
+# ML Configuration
 ML_CONFIG = {
     "growth_threshold": 1.2,
     "decline_threshold": 0.8,
@@ -76,16 +105,23 @@ def save_recommendations(recommendations):
         st.error(f"Error saving recommendations: {e}")
 
 # ==================== REAL AI FUNCTIONS ====================
-def call_gpt4_for_reorder_analysis(product, velocity, current_stock, sales_history):
-    """Uses real GPT-4o-mini to analyze reorder needs"""
+def call_ai_for_reorder_analysis(product, velocity, current_stock, sales_history):
+    """
+    Uses REAL AI (Groq or OpenAI) to analyze reorder needs
+    
+    GROQ (FREE): Uses Llama 3.1 70B - very fast and free
+    OPENAI (PAID): Uses GPT-4o-mini - costs ~$0.0003 per call
+    
+    To switch: Change AI_PROVIDER in secrets.toml
+    """
     if not AI_ENABLED:
-        # Fallback logic
+        # Fallback: Rule-based logic (no AI)
         weeks_supply = current_stock / velocity if velocity > 0 else 999
         if weeks_supply < ML_CONFIG["low_stock_threshold_weeks"]:
             return {
                 "should_reorder": True,
                 "quantity": int(velocity * ML_CONFIG["reorder_multiplier"] * 2),
-                "reason": f"Low stock detected: only {weeks_supply:.1f} weeks supply remaining",
+                "reason": f"Low stock: {weeks_supply:.1f} weeks supply",
                 "confidence": 88
             }
         return {"should_reorder": False}
@@ -108,10 +144,11 @@ Respond ONLY with valid JSON (no markdown):
 
 Consider lead time (2-3 days) and safety stock. Recommend reorder if stock will run out in less than 2 weeks."""
 
-        response = client.chat.completions.create(
-            model=GPT4_CONFIG["model"],
-            temperature=GPT4_CONFIG["temperature"],
-            max_tokens=GPT4_CONFIG["max_tokens"],
+        # Call Groq or OpenAI (same API format)
+        response = ai_client.chat.completions.create(
+            model=AI_MODEL,
+            temperature=0.3,
+            max_tokens=500,
             messages=[
                 {"role": "system", "content": "You are an inventory analyst. Respond only with JSON."},
                 {"role": "user", "content": prompt}
@@ -119,7 +156,8 @@ Consider lead time (2-3 days) and safety stock. Recommend reorder if stock will 
         )
         
         content = response.choices[0].message.content.strip()
-        # Remove markdown code blocks if present
+        
+        # Clean markdown if present
         if content.startswith("```"):
             content = content.split("```")[1]
             if content.startswith("json"):
@@ -129,25 +167,30 @@ Consider lead time (2-3 days) and safety stock. Recommend reorder if stock will 
         return result
         
     except Exception as e:
-        st.warning(f"AI Error: {e}. Using fallback.")
+        st.warning(f"AI Error: {e}. Using fallback logic.")
         weeks_supply = current_stock / velocity if velocity > 0 else 999
         if weeks_supply < 1.5:
             return {
                 "should_reorder": True,
                 "quantity": int(velocity * 2 * 2),
-                "reason": f"Low stock: {weeks_supply:.1f} weeks supply",
+                "reason": f"Low stock: {weeks_supply:.1f} weeks",
                 "confidence": 85
             }
         return {"should_reorder": False}
 
-def call_gpt4_for_promotion_strategy(product, velocity, current_stock, excess_weeks):
-    """Uses real GPT-4o-mini to create promotion strategies"""
+def call_ai_for_promotion_strategy(product, velocity, current_stock, excess_weeks):
+    """
+    Uses REAL AI (Groq or OpenAI) to create promotion strategies
+    
+    GROQ (FREE): Creative and fast
+    OPENAI (PAID): Slightly more sophisticated responses
+    """
     if not AI_ENABLED:
         discount = "40%" if excess_weeks > 12 else "30%"
         return {
             "create_promotion": True,
             "strategy": f"{discount} off flash sale",
-            "reason": f"Overstock: {excess_weeks:.1f} weeks of inventory",
+            "reason": f"Overstock: {excess_weeks:.1f} weeks",
             "confidence": 90
         }
     
@@ -170,8 +213,8 @@ Respond ONLY with JSON (no markdown):
 
 Make it attractive to customers without excessive loss."""
 
-        response = client.chat.completions.create(
-            model=GPT4_CONFIG["model"],
+        response = ai_client.chat.completions.create(
+            model=AI_MODEL,
             temperature=0.5,
             max_tokens=300,
             messages=[
@@ -181,7 +224,8 @@ Make it attractive to customers without excessive loss."""
         )
         
         content = response.choices[0].message.content.strip()
-        # Remove markdown if present
+        
+        # Clean markdown
         if content.startswith("```"):
             content = content.split("```")[1]
             if content.startswith("json"):
@@ -202,6 +246,10 @@ Make it attractive to customers without excessive loss."""
 
 # ==================== SHELF SCANNER ====================
 class ShelfScanner:
+    """
+    Computer Vision shelf scanner using YOLOv8 + EasyOCR
+    This is REAL AI that runs locally (no API costs)
+    """
     def __init__(self):
         self.yolo_model = None
         self.ocr_reader = None
@@ -239,7 +287,7 @@ class ShelfScanner:
             img = cv2.resize(img, (640, 640))
             detected = {}
 
-            # Try YOLO
+            # Try YOLO detection
             model = self._load_yolo()
             if model:
                 try:
@@ -248,7 +296,6 @@ class ShelfScanner:
                         for box in r.boxes:
                             label = r.names[int(box.cls[0])].lower()
                             
-                            # Count detected objects
                             if 'bottle' in label or 'cup' in label or 'bowl' in label:
                                 detected[label] = detected.get(label, 0) + 1
                     
@@ -267,9 +314,8 @@ class ShelfScanner:
                         all_text = ' '.join([t.lower() for t in ocr_results])
                         
                         if all_text:
-                            st.info(f"📝 OCR text: {all_text[:100]}")
+                            st.info(f"📝 OCR detected: {all_text[:100]}")
                         
-                        # Detect products from text
                         products = ['milk', 'water', 'juice', 'soda', 'coffee', 'tea', 
                                    'chips', 'cookies', 'candy', 'bread', 'cheese']
                         for product in products:
@@ -279,9 +325,8 @@ class ShelfScanner:
                         st.warning(f"OCR error: {e}")
 
             if not detected:
-                return {'success': False, 'error': 'No products detected. Try better lighting or manual entry.'}
+                return {'success': False, 'error': 'No products detected. Try better lighting.'}
 
-            # Format quantities
             quantities = {}
             for product, count in detected.items():
                 quantities[product] = max(count, 5)
@@ -290,7 +335,7 @@ class ShelfScanner:
                 'success': True,
                 'products': quantities,
                 'confidence': 0.85,
-                'method': 'Computer Vision (YOLO + OCR)'
+                'method': 'YOLOv8 + OCR (Local AI)'
             }
 
         except Exception as e:
@@ -352,7 +397,14 @@ class CSVProcessor:
         return {k: max(v, 0.1) for k, v in velocity.items()}
     
     def generate_recommendations_with_ai(self, current_inventory_dict):
-        """Generate recommendations using REAL GPT-4o-mini"""
+        """
+        Generate recommendations using REAL AI
+        
+        Current AI: {AI_PROVIDER.upper()} ({AI_MODEL})
+        Cost: {'FREE' if AI_PROVIDER == 'groq' else 'PAID'}
+        
+        To switch providers, update secrets.toml
+        """
         recs = []
         velocity = self.analyze_velocity()
         
@@ -387,9 +439,11 @@ class CSVProcessor:
             
             # REORDER CHECK
             if weeks_supply < ML_CONFIG["low_stock_threshold_weeks"]:
-                ai_result = call_gpt4_for_reorder_analysis(prod, vel, stock, trend)
+                ai_result = call_ai_for_reorder_analysis(prod, vel, stock, trend)
                 
                 if ai_result.get("should_reorder"):
+                    agent_name = f"Reorder Agent ({AI_PROVIDER.upper()})" if AI_ENABLED else "Reorder Agent (Rule-based)"
+                    
                     recs.append({
                         "id": f"reorder_{prod.replace(' ', '_')}_{int(time.time())}_{idx}",
                         "type": "REORDER",
@@ -399,15 +453,17 @@ class CSVProcessor:
                         "recommended_quantity": ai_result.get("quantity", int(vel * 4)),
                         "reason": ai_result.get("reason", "Low stock detected"),
                         "confidence": ai_result.get("confidence", 90),
-                        "ai_agent": "Reorder Agent (GPT-4o-mini)" if AI_ENABLED else "Reorder Agent (Rule-based)",
+                        "ai_agent": agent_name,
                         "status": "pending"
                     })
             
             # PROMOTION CHECK
             elif weeks_supply > ML_CONFIG["overstock_threshold_weeks"]:
-                ai_result = call_gpt4_for_promotion_strategy(prod, vel, stock, weeks_supply)
+                ai_result = call_ai_for_promotion_strategy(prod, vel, stock, weeks_supply)
                 
                 if ai_result.get("create_promotion"):
+                    agent_name = f"Promotion Agent ({AI_PROVIDER.upper()})" if AI_ENABLED else "Promotion Agent (Rule-based)"
+                    
                     recs.append({
                         "id": f"promo_{prod.replace(' ', '_')}_{int(time.time())}_{idx}",
                         "type": "PROMOTION",
@@ -418,7 +474,7 @@ class CSVProcessor:
                         "recommended_action": ai_result.get("strategy", "Discount sale"),
                         "reason": ai_result.get("reason", f"Overstock: {weeks_supply:.1f} weeks"),
                         "confidence": ai_result.get("confidence", 92),
-                        "ai_agent": "Promotion Agent (GPT-4o-mini)" if AI_ENABLED else "Promotion Agent (Rule-based)",
+                        "ai_agent": agent_name,
                         "status": "pending"
                     })
         
@@ -434,17 +490,22 @@ class CSVProcessor:
 st.title("📊 Data Sources")
 st.markdown("Upload sales data and scan shelves to power AI recommendations")
 
-# Show AI status
+# Show AI status banner
 if AI_ENABLED:
-    st.success("✅ OpenAI Connected: GPT-4o-mini Active")
+    if AI_PROVIDER == "groq":
+        st.success(f"✅ AI Active: Groq Llama 3.1 (70B) - **FREE & UNLIMITED**")
+        st.info("💡 To use OpenAI GPT-4 (paid), change AI_PROVIDER to 'openai' in secrets.toml")
+    else:
+        st.success(f"✅ AI Active: OpenAI {AI_MODEL}")
+        st.warning("⚠️ **Using PAID API** - Each analysis costs ~$0.01. Switch to Groq for FREE!")
 else:
-    st.error("❌ OpenAI API not configured. Add OPENAI_API_KEY to secrets.toml")
+    st.error("❌ No AI configured. Add GROQ_API_KEY or OPENAI_API_KEY to secrets.toml")
 
 st.markdown("---")
 
 # ==================== CSV UPLOAD ====================
 st.subheader("1️⃣ Upload Sales History")
-st.markdown("Upload your CSV with columns like: date, product, quantity")
+st.markdown("Upload CSV with: date, product, quantity")
 sales_file = st.file_uploader("Sales CSV", type="csv", key="sales")
 
 st.subheader("2️⃣ Upload Current Inventory (Optional)")
@@ -453,7 +514,7 @@ inventory_file = st.file_uploader("Inventory CSV", type="csv", key="stock")
 
 if sales_file:
     if st.button("🤖 Process with AI", type="primary", use_container_width=True):
-        with st.spinner("🤖 AI analyzing..."):
+        with st.spinner(f"🤖 AI analyzing with {AI_PROVIDER.upper()}..."):
             processor = CSVProcessor()
             ok, msg = processor.load_csv(sales_file)
             if not ok:
@@ -462,10 +523,8 @@ if sales_file:
             
             st.success(f"✅ Loaded {len(processor.df)} transactions")
             
-            # Load inventory
             current_stock = load_inventory()
             
-            # Process inventory CSV
             if inventory_file:
                 try:
                     df_stock = pd.read_csv(inventory_file)
@@ -489,18 +548,15 @@ if sales_file:
                 except Exception as e:
                     st.warning(f"⚠️ Inventory error: {e}")
             
-            # Prepare inventory for analysis
             inv_qty = {}
             for p, d in current_stock.items():
                 inv_qty[p] = d.get('quantity', 0) if isinstance(d, dict) else d
             
-            # Generate AI recommendations
             if AI_ENABLED:
-                st.info("🤖 Calling OpenAI GPT-4o-mini... (30-60s)")
+                st.info(f"🤖 Calling {AI_PROVIDER.upper()} AI... (30-60s)")
             
             recs = processor.generate_recommendations_with_ai(inv_qty)
             
-            # Save
             save_sales_data(processor.get_dataframe().to_dict('records'))
             save_inventory(current_stock)
             save_recommendations(recs)
@@ -511,13 +567,13 @@ if sales_file:
             if recs:
                 st.info("👉 Go to **Approval Queue** to review!")
             else:
-                st.info("ℹ️ No recommendations needed. Inventory levels are good!")
+                st.info("ℹ️ No recommendations needed!")
 
 st.markdown("---")
 
 # ==================== SHELF SCANNER ====================
-st.subheader("3️⃣ 📸 Shelf Scanner")
-st.markdown("Use computer vision to detect products and update inventory")
+st.subheader("3️⃣ 📸 Shelf Scanner (Computer Vision)")
+st.markdown("Uses YOLOv8 + OCR to detect products - **Runs locally, no API costs**")
 
 col1, col2 = st.columns(2)
 image_bytes = None
@@ -541,14 +597,13 @@ with col2:
 
 if image_bytes:
     if st.button("🤖 Scan Shelf", type="primary", use_container_width=True):
-        with st.spinner("🤖 AI scanning..."):
+        with st.spinner("🤖 Scanning with computer vision..."):
             scanner = ShelfScanner()
             result = scanner.scan_shelf(image_bytes)
             
             if result['success']:
                 st.success(f"✅ Detected {len(result['products'])} products!")
                 
-                # Update inventory
                 inv = load_inventory()
                 for prod, qty in result['products'].items():
                     inv[prod] = {
@@ -561,15 +616,12 @@ if image_bytes:
                 if save_inventory(inv):
                     st.success("✅ Inventory updated!")
                     
-                    # Show detected
                     st.markdown("### 📦 Detected:")
                     for prod, qty in result['products'].items():
                         st.metric(prod.title(), f"{qty} units")
                     
                     if st.button("📊 View in Analytics"):
                         st.switch_page("pages/genstockai_analytics.py")
-                else:
-                    st.error("❌ Save failed")
             else:
                 st.error(f"❌ {result.get('error')}")
 
@@ -600,16 +652,23 @@ else:
 
 # Developer tools
 with st.sidebar:
-    st.markdown("### 🔧 Dev Tools")
+    st.markdown("### 🔧 Developer Tools")
     
-    if st.checkbox("Show Config"):
+    st.markdown("**AI Provider:**")
+    st.code(f"{AI_PROVIDER.upper()} - {AI_MODEL if AI_ENABLED else 'Not configured'}")
+    
+    if st.checkbox("Show Full Config"):
         st.json({
-            "AI": AI_ENABLED,
-            "Model": GPT4_CONFIG["model"],
-            "ML": ML_CONFIG
+            "AI_Provider": AI_PROVIDER,
+            "AI_Enabled": AI_ENABLED,
+            "Model": AI_MODEL if AI_ENABLED else None,
+            "Cost": "FREE" if AI_PROVIDER == "groq" else "PAID",
+            "ML_Config": ML_CONFIG
         })
     
-    if st.button("🗑️ Clear Data"):
+    st.markdown("---")
+    
+    if st.button("🗑️ Clear All Data"):
         for f in [SALES_DATA_FILE, INVENTORY_FILE, RECOMMENDATIONS_FILE]:
             if os.path.exists(f):
                 os.remove(f)
