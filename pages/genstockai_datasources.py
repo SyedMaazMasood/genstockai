@@ -85,7 +85,6 @@ class ShelfScanner:
     def _load_yolo(self):
         if self.yolo_model is None:
             try:
-                from ultralytics import YOLO
                 # This is the ONLY model that reliably works on Streamlit free tier
                 self.yolo_model = YOLO("yolov8n.pt")  # 6MB, loads in ~8s first time
                 st.success("YOLOv8 vision model loaded!")
