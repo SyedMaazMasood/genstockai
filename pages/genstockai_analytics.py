@@ -20,7 +20,15 @@ try:
     
     if GEMINI_API_KEY:
         genai.configure(api_key=GEMINI_API_KEY)
-        gemini_model = genai.GenerativeModel('gemini-1.5-flash')  # Fast and free model
+        # Try different model names - Gemini API has different versions
+        try:
+            gemini_model = genai.GenerativeModel('gemini-pro')  # Stable model name
+        except:
+            try:
+                gemini_model = genai.GenerativeModel('models/gemini-pro')  # Alternative format
+            except:
+                gemini_model = genai.GenerativeModel('gemini-1.5-pro-latest')  # Latest version
+        
         GEMINI_ENABLED = True
     else:
         GEMINI_ENABLED = False
@@ -193,8 +201,8 @@ def generate_ai_response_with_gemini(question, stats, products, trends):
     """
     Uses REAL Google Gemini AI to answer questions about your data
     
-    Gemini 1.5 Flash:
-    - FREE with generous limits (15 requests/min, 1M requests/day)
+    Gemini Pro:
+    - FREE with generous limits (60 requests/min)
     - Fast responses (~1-2 seconds)
     - Excellent at data analysis and business intelligence
     - No credit card required for free tier
@@ -247,7 +255,7 @@ You are a business intelligence analyst helping a small business owner understan
 {response.text}
 
 ---
-**AI Model:** Google Gemini 1.5 Flash (FREE)
+**AI Model:** Google Gemini Pro (FREE)
 **Analysis Date:** {time.strftime('%Y-%m-%d %H:%M')}
 **Data Points:** {stats.get('total_transactions', 0):,} transactions"""
         
@@ -272,7 +280,7 @@ st.markdown("AI-powered analysis of your sales and inventory performance")
 col_ai1, col_ai2 = st.columns(2)
 with col_ai1:
     if AI_PROVIDER == "groq":
-        st.success("🤖 **Recommendations:** Groq Llama 3.3 (FREE)")
+        st.success("🤖 **Recommendations:** Groq Llama 3.1 (FREE)")
     elif AI_PROVIDER == "openai":
         st.info("🤖 **Recommendations:** OpenAI GPT-4o-mini (PAID)")
     else:
@@ -280,7 +288,7 @@ with col_ai1:
 
 with col_ai2:
     if GEMINI_ENABLED:
-        st.success("🤖 **Q&A Analysis:** Google Gemini 1.5 (FREE)")
+        st.success("🤖 **Q&A Analysis:** Google Gemini Pro (FREE)")
     else:
         st.warning("⚠️ **Q&A Analysis:** Add GEMINI_API_KEY")
 
@@ -480,7 +488,7 @@ st.markdown("### 🤖 AI-Powered Q&A")
 with st.container(border=True):
     if GEMINI_ENABLED:
         st.markdown("#### Ask Google Gemini About Your Data")
-        st.success("✅ **Powered by:** Google Gemini 1.5 Flash (FREE)")
+        st.success("✅ **Powered by:** Google Gemini Pro (FREE)")
         st.caption("💡 Gemini analyzes your actual sales data and provides intelligent insights")
     else:
         st.markdown("#### AI Q&A Not Configured")
@@ -596,12 +604,12 @@ with col3:
 st.markdown("---")
 ai_stack = []
 if AI_PROVIDER == "groq":
-    ai_stack.append("Groq Llama 3.3 (Recommendations)")
+    ai_stack.append("Groq Llama 3.1 (Recommendations)")
 elif AI_PROVIDER == "openai":
     ai_stack.append("OpenAI GPT-4o-mini (Recommendations)")
 
 if GEMINI_ENABLED:
-    ai_stack.append("Google Gemini 1.5 (Q&A)")
+    ai_stack.append("Google Gemini Pro (Q&A)")
 
 ai_text = " + ".join(ai_stack) if ai_stack else "Template-based Logic"
 st.caption(f"🤖 Powered by: {ai_text} | Computer Vision: YOLOv8 + EasyOCR")
