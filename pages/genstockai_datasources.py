@@ -16,12 +16,13 @@ from openai import OpenAI
 try:
     client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
     AI_ENABLED = True
-except:
-    st.warning("⚠️ OpenAI API key not found. AI features will use fallback logic.")
+    st.sidebar.success("✅ OpenAI API Connected!")
+except Exception as e:
+    st.sidebar.warning(f"⚠️ OpenAI API Error: {e}")
     AI_ENABLED = False
 
 GPT4_CONFIG = {
-    "model": "gpt-4-turbo-preview",
+    "model": "gpt-4o-mini",  # Changed to gpt-4o-mini (you have access to this!)
     "temperature": 0.3,
     "max_tokens": 500,
 }
@@ -76,7 +77,7 @@ def save_recommendations(recommendations):
 
 # ==================== REAL AI FUNCTIONS ====================
 def call_gpt4_for_reorder_analysis(product, velocity, current_stock, sales_history):
-    """Uses real GPT-4 to analyze reorder needs"""
+    """Uses real GPT-4o-mini to analyze reorder needs"""
     if not AI_ENABLED:
         # Fallback logic
         weeks_supply = current_stock / velocity if velocity > 0 else 999
@@ -90,43 +91,45 @@ def call_gpt4_for_reorder_analysis(product, velocity, current_stock, sales_histo
         return {"should_reorder": False}
     
     try:
-        prompt = f"""You are an inventory management expert. Analyze this product data and provide reorder recommendation.
+        prompt = f"""You are an inventory management AI. Analyze this product and decide if we should reorder.
 
 Product: {product}
 Current Stock: {current_stock} units
-Weekly Sales Velocity: {velocity} units/week
-Recent Sales Trend: {sales_history if sales_history else 'No trend data'}
+Weekly Sales: {velocity} units/week
+Trend: {sales_history}
 
-Provide your analysis in JSON format:
+Respond ONLY with valid JSON (no markdown):
 {{
-    "should_reorder": true/false,
-    "quantity": recommended_order_quantity (integer),
+    "should_reorder": true or false,
+    "quantity": integer (if reordering),
     "reason": "brief explanation",
-    "confidence": confidence_score_0_to_100 (integer)
+    "confidence": integer 0-100
 }}
 
-Consider:
-- Lead time of 2-3 days
-- Safety stock buffer
-- Sales trends
-- Avoid stockouts"""
+Consider lead time (2-3 days) and safety stock. Recommend reorder if stock will run out in less than 2 weeks."""
 
         response = client.chat.completions.create(
             model=GPT4_CONFIG["model"],
             temperature=GPT4_CONFIG["temperature"],
             max_tokens=GPT4_CONFIG["max_tokens"],
             messages=[
-                {"role": "system", "content": "You are an AI inventory analyst. Always respond with valid JSON only."},
+                {"role": "system", "content": "You are an inventory analyst. Respond only with JSON."},
                 {"role": "user", "content": prompt}
             ]
         )
         
-        result = json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content.strip()
+        # Remove markdown code blocks if present
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+        
+        result = json.loads(content.strip())
         return result
         
     except Exception as e:
-        st.warning(f"GPT-4 call failed: {e}. Using fallback logic.")
-        # Fallback
+        st.warning(f"AI Error: {e}. Using fallback.")
         weeks_supply = current_stock / velocity if velocity > 0 else 999
         if weeks_supply < 1.5:
             return {
@@ -138,7 +141,7 @@ Consider:
         return {"should_reorder": False}
 
 def call_gpt4_for_promotion_strategy(product, velocity, current_stock, excess_weeks):
-    """Uses real GPT-4 to create promotion strategies"""
+    """Uses real GPT-4o-mini to create promotion strategies"""
     if not AI_ENABLED:
         discount = "40%" if excess_weeks > 12 else "30%"
         return {
@@ -149,39 +152,46 @@ def call_gpt4_for_promotion_strategy(product, velocity, current_stock, excess_we
         }
     
     try:
-        prompt = f"""You are a retail promotion strategist. Create a promotion strategy for this overstocked item.
+        prompt = f"""You are a retail promotion expert. Create a promotion for this overstocked item.
 
 Product: {product}
 Current Stock: {current_stock} units
-Weekly Sales Velocity: {velocity} units/week
-Weeks of Supply: {excess_weeks:.1f} weeks (OVERSTOCKED)
+Weekly Sales: {velocity} units/week
+Weeks Supply: {excess_weeks:.1f} weeks (OVERSTOCKED!)
 
-Provide strategy in JSON format:
+Respond ONLY with JSON (no markdown):
 {{
     "create_promotion": true,
-    "strategy": "specific promotion idea",
-    "discount_percentage": integer (10-50),
-    "reason": "brief explanation",
-    "confidence": confidence_score_0_to_100 (integer)
+    "strategy": "creative promotion idea",
+    "discount_percentage": integer 10-50,
+    "reason": "why this will work",
+    "confidence": integer 0-100
 }}
 
-Create an attractive promotion that will move inventory quickly without excessive loss."""
+Make it attractive to customers without excessive loss."""
 
         response = client.chat.completions.create(
             model=GPT4_CONFIG["model"],
-            temperature=0.5,  # Slightly higher for creative promotions
+            temperature=0.5,
             max_tokens=300,
             messages=[
-                {"role": "system", "content": "You are a creative retail promotion expert. Always respond with valid JSON only."},
+                {"role": "system", "content": "You are a promotion expert. Respond only with JSON."},
                 {"role": "user", "content": prompt}
             ]
         )
         
-        result = json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content.strip()
+        # Remove markdown if present
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+        
+        result = json.loads(content.strip())
         return result
         
     except Exception as e:
-        st.warning(f"GPT-4 call failed for promotion: {e}")
+        st.warning(f"AI Error: {e}. Using fallback.")
         discount = "40%" if excess_weeks > 12 else "30%"
         return {
             "create_promotion": True,
@@ -195,14 +205,6 @@ class ShelfScanner:
     def __init__(self):
         self.yolo_model = None
         self.ocr_reader = None
-        self.product_map = {
-            'bottle': 'beverage',
-            'cup': 'cup',
-            'person': None,  # Ignore
-            'chair': None,
-            'cell phone': None,
-            # Add more YOLO class mappings as needed
-        }
 
     def _load_yolo(self):
         if hasattr(self, 'yolo_loaded'):
@@ -213,7 +215,7 @@ class ShelfScanner:
             self.yolo_loaded = True
             return self.yolo_model
         except Exception as e:
-            st.warning(f"YOLO model not available: {e}")
+            st.warning(f"YOLO not available: {e}")
             self.yolo_model = None
             self.yolo_loaded = True
             return None
@@ -237,7 +239,7 @@ class ShelfScanner:
             img = cv2.resize(img, (640, 640))
             detected = {}
 
-            # Try YOLO detection
+            # Try YOLO
             model = self._load_yolo()
             if model:
                 try:
@@ -245,17 +247,16 @@ class ShelfScanner:
                     for r in results:
                         for box in r.boxes:
                             label = r.names[int(box.cls[0])].lower()
-                            conf = float(box.conf[0])
                             
-                            # Map YOLO classes to products
-                            if 'bottle' in label or 'cup' in label:
-                                product_name = label
-                                detected[product_name] = detected.get(product_name, 0) + 1
+                            # Count detected objects
+                            if 'bottle' in label or 'cup' in label or 'bowl' in label:
+                                detected[label] = detected.get(label, 0) + 1
                     
-                    st.info(f"🤖 YOLO detected: {detected}")
+                    if detected:
+                        st.info(f"🤖 YOLO detected: {detected}")
                     
                 except Exception as e:
-                    st.warning(f"YOLO processing error: {e}")
+                    st.warning(f"YOLO error: {e}")
 
             # Fallback to OCR
             if not detected:
@@ -264,33 +265,36 @@ class ShelfScanner:
                     try:
                         ocr_results = ocr.readtext(img, detail=0)
                         all_text = ' '.join([t.lower() for t in ocr_results])
-                        st.info(f"📝 OCR detected text: {all_text[:100]}...")
                         
-                        # Simple product detection from text
-                        common_products = ['milk', 'water', 'juice', 'soda', 'coffee', 'tea']
-                        for product in common_products:
+                        if all_text:
+                            st.info(f"📝 OCR text: {all_text[:100]}")
+                        
+                        # Detect products from text
+                        products = ['milk', 'water', 'juice', 'soda', 'coffee', 'tea', 
+                                   'chips', 'cookies', 'candy', 'bread', 'cheese']
+                        for product in products:
                             if product in all_text:
-                                detected[product] = all_text.count(product) * 3
+                                detected[product] = max(all_text.count(product) * 3, 5)
                     except Exception as e:
                         st.warning(f"OCR error: {e}")
 
             if not detected:
-                return {'success': False, 'error': 'No products recognized. Try a clearer photo or manually enter inventory.'}
+                return {'success': False, 'error': 'No products detected. Try better lighting or manual entry.'}
 
-            # Convert counts to reasonable quantities
+            # Format quantities
             quantities = {}
             for product, count in detected.items():
-                quantities[product] = max(count, 5)  # Minimum 5 units per detected item
+                quantities[product] = max(count, 5)
 
             return {
                 'success': True,
                 'products': quantities,
                 'confidence': 0.85,
-                'method': 'YOLOv8 + OCR'
+                'method': 'Computer Vision (YOLO + OCR)'
             }
 
         except Exception as e:
-            return {'success': False, 'error': f'Processing failed: {str(e)}'}
+            return {'success': False, 'error': f'Scan failed: {str(e)}'}
 
 # ==================== CSV PROCESSOR ====================
 class CSVProcessor:
@@ -310,7 +314,7 @@ class CSVProcessor:
                 return False, "Cannot read CSV"
             self.df.columns = [c.strip().lower().replace(' ', '_') for c in self.df.columns]
             self._detect_columns()
-            return True, "Loaded"
+            return True, "Loaded successfully"
         except Exception as e:
             return False, str(e)
     
@@ -348,9 +352,13 @@ class CSVProcessor:
         return {k: max(v, 0.1) for k, v in velocity.items()}
     
     def generate_recommendations_with_ai(self, current_inventory_dict):
-        """Generate recommendations using REAL GPT-4"""
+        """Generate recommendations using REAL GPT-4o-mini"""
         recs = []
         velocity = self.analyze_velocity()
+        
+        if not velocity:
+            st.warning("No products found in sales data!")
+            return []
         
         progress_bar = st.progress(0)
         status_text = st.empty()
@@ -358,59 +366,59 @@ class CSVProcessor:
         total_products = len(velocity)
         
         for idx, (prod, vel) in enumerate(velocity.items()):
-            status_text.text(f"🤖 AI analyzing {prod}... ({idx+1}/{total_products})")
+            status_text.text(f"🤖 AI analyzing: {prod}... ({idx+1}/{total_products})")
             progress_bar.progress((idx + 1) / total_products)
             
             stock = current_inventory_dict.get(prod, 0)
             weeks_supply = stock / vel if vel > 0 else 999
             
-            # Get recent sales trend
+            # Get trend
             if 'date' in self.column_mapping and 'product' in self.column_mapping:
                 product_df = self.df[self.df[self.column_mapping['product']] == prod]
                 if len(product_df) >= 4:
                     mid = len(product_df) // 2
-                    first_half = product_df.iloc[:mid][self.column_mapping['quantity']].sum()
-                    second_half = product_df.iloc[mid:][self.column_mapping['quantity']].sum()
-                    trend = "growing" if second_half > first_half * 1.2 else "stable"
+                    first = product_df.iloc[:mid][self.column_mapping['quantity']].sum()
+                    second = product_df.iloc[mid:][self.column_mapping['quantity']].sum()
+                    trend = "growing" if second > first * 1.2 else "declining" if second < first * 0.8 else "stable"
                 else:
                     trend = "stable"
             else:
                 trend = "unknown"
             
-            # REORDER CHECK with AI
+            # REORDER CHECK
             if weeks_supply < ML_CONFIG["low_stock_threshold_weeks"]:
                 ai_result = call_gpt4_for_reorder_analysis(prod, vel, stock, trend)
                 
                 if ai_result.get("should_reorder"):
                     recs.append({
-                        "id": f"reorder_{prod}_{int(time.time())}_{idx}",
+                        "id": f"reorder_{prod.replace(' ', '_')}_{int(time.time())}_{idx}",
                         "type": "REORDER",
                         "product": prod,
                         "current_stock": stock,
                         "weekly_velocity": round(vel, 1),
-                        "recommended_quantity": ai_result.get("quantity", int(vel * 2 * 2)),
+                        "recommended_quantity": ai_result.get("quantity", int(vel * 4)),
                         "reason": ai_result.get("reason", "Low stock detected"),
                         "confidence": ai_result.get("confidence", 90),
-                        "ai_agent": "Reorder Agent (GPT-4)" if AI_ENABLED else "Reorder Agent (Rule-based)",
+                        "ai_agent": "Reorder Agent (GPT-4o-mini)" if AI_ENABLED else "Reorder Agent (Rule-based)",
                         "status": "pending"
                     })
             
-            # PROMOTION CHECK with AI
+            # PROMOTION CHECK
             elif weeks_supply > ML_CONFIG["overstock_threshold_weeks"]:
                 ai_result = call_gpt4_for_promotion_strategy(prod, vel, stock, weeks_supply)
                 
                 if ai_result.get("create_promotion"):
                     recs.append({
-                        "id": f"promo_{prod}_{int(time.time())}_{idx}",
+                        "id": f"promo_{prod.replace(' ', '_')}_{int(time.time())}_{idx}",
                         "type": "PROMOTION",
                         "product": prod,
                         "current_stock": stock,
                         "weekly_velocity": round(vel, 1),
                         "excess_weeks": round(weeks_supply, 1),
-                        "recommended_action": ai_result.get("strategy", "Discount promotion"),
-                        "reason": ai_result.get("reason", f"Overstock: {weeks_supply:.1f} weeks supply"),
+                        "recommended_action": ai_result.get("strategy", "Discount sale"),
+                        "reason": ai_result.get("reason", f"Overstock: {weeks_supply:.1f} weeks"),
                         "confidence": ai_result.get("confidence", 92),
-                        "ai_agent": "Promotion Agent (GPT-4)" if AI_ENABLED else "Promotion Agent (Rule-based)",
+                        "ai_agent": "Promotion Agent (GPT-4o-mini)" if AI_ENABLED else "Promotion Agent (Rule-based)",
                         "status": "pending"
                     })
         
@@ -428,95 +436,97 @@ st.markdown("Upload sales data and scan shelves to power AI recommendations")
 
 # Show AI status
 if AI_ENABLED:
-    st.success("✅ AI Powered: OpenAI GPT-4 Active")
+    st.success("✅ OpenAI Connected: GPT-4o-mini Active")
 else:
-    st.warning("⚠️ AI Fallback Mode: Using rule-based logic (add API key to enable GPT-4)")
+    st.error("❌ OpenAI API not configured. Add OPENAI_API_KEY to secrets.toml")
 
 st.markdown("---")
 
 # ==================== CSV UPLOAD ====================
-st.subheader("1️⃣ Upload Sales History (Required)")
-sales_file = st.file_uploader("Sales CSV (date, product, quantity)", type="csv", key="sales")
+st.subheader("1️⃣ Upload Sales History")
+st.markdown("Upload your CSV with columns like: date, product, quantity")
+sales_file = st.file_uploader("Sales CSV", type="csv", key="sales")
 
-st.subheader("2️⃣ Upload Current Inventory (Optional - Makes AI More Accurate)")
-inventory_file = st.file_uploader("Stock CSV (product, current_stock)", type="csv", key="stock")
+st.subheader("2️⃣ Upload Current Inventory (Optional)")
+st.markdown("Upload CSV with: product, current_stock")
+inventory_file = st.file_uploader("Inventory CSV", type="csv", key="stock")
 
-if sales_file and st.button("🤖 Process Data & Generate AI Recommendations", type="primary", use_container_width=True):
-    with st.spinner("🤖 AI analyzing your data..."):
-        processor = CSVProcessor()
-        ok, msg = processor.load_csv(sales_file)
-        if not ok:
-            st.error(f"❌ {msg}")
-            st.stop()
-        
-        st.success(f"✅ Loaded {len(processor.df)} sales transactions")
-        
-        # Load current inventory
-        current_stock = load_inventory()
-        
-        # Process inventory CSV if provided
-        if inventory_file:
-            try:
-                df_stock = pd.read_csv(inventory_file)
-                df_stock.columns = [c.strip().lower().replace(' ', '_') for c in df_stock.columns]
-                
-                stock_col = next((c for c in ['current_stock','in_stock','stock','on_hand','quantity'] if c in df_stock.columns), None)
-                product_col = next((c for c in ['product','item','name'] if c in df_stock.columns), None)
-                
-                if stock_col and product_col:
-                    for _, row in df_stock.iterrows():
-                        p = str(row[product_col]).strip()
-                        try:
-                            current_stock[p] = {
-                                "quantity": int(float(row[stock_col])),
-                                "last_updated": datetime.now().isoformat(),
-                                "source": "csv_upload"
-                            }
-                        except:
-                            pass
-                    st.success(f"✅ Loaded inventory for {len(current_stock)} products")
-                else:
-                    st.warning("⚠️ Could not find 'product' and 'stock' columns in inventory CSV")
-            except Exception as e:
-                st.warning(f"⚠️ Could not read inventory CSV: {e}")
-        
-        # Convert inventory format for velocity calculations
-        inventory_quantities = {}
-        for prod, data in current_stock.items():
-            if isinstance(data, dict):
-                inventory_quantities[prod] = data.get('quantity', 0)
+if sales_file:
+    if st.button("🤖 Process with AI", type="primary", use_container_width=True):
+        with st.spinner("🤖 AI analyzing..."):
+            processor = CSVProcessor()
+            ok, msg = processor.load_csv(sales_file)
+            if not ok:
+                st.error(f"❌ {msg}")
+                st.stop()
+            
+            st.success(f"✅ Loaded {len(processor.df)} transactions")
+            
+            # Load inventory
+            current_stock = load_inventory()
+            
+            # Process inventory CSV
+            if inventory_file:
+                try:
+                    df_stock = pd.read_csv(inventory_file)
+                    df_stock.columns = [c.strip().lower().replace(' ', '_') for c in df_stock.columns]
+                    
+                    stock_col = next((c for c in ['current_stock','in_stock','stock','quantity'] if c in df_stock.columns), None)
+                    product_col = next((c for c in ['product','item','name'] if c in df_stock.columns), None)
+                    
+                    if stock_col and product_col:
+                        for _, row in df_stock.iterrows():
+                            p = str(row[product_col]).strip()
+                            try:
+                                current_stock[p] = {
+                                    "quantity": int(float(row[stock_col])),
+                                    "last_updated": datetime.now().isoformat(),
+                                    "source": "csv_upload"
+                                }
+                            except:
+                                pass
+                        st.success(f"✅ Loaded {len(current_stock)} products")
+                except Exception as e:
+                    st.warning(f"⚠️ Inventory error: {e}")
+            
+            # Prepare inventory for analysis
+            inv_qty = {}
+            for p, d in current_stock.items():
+                inv_qty[p] = d.get('quantity', 0) if isinstance(d, dict) else d
+            
+            # Generate AI recommendations
+            if AI_ENABLED:
+                st.info("🤖 Calling OpenAI GPT-4o-mini... (30-60s)")
+            
+            recs = processor.generate_recommendations_with_ai(inv_qty)
+            
+            # Save
+            save_sales_data(processor.get_dataframe().to_dict('records'))
+            save_inventory(current_stock)
+            save_recommendations(recs)
+            
+            st.success(f"✅ Generated {len(recs)} AI recommendations!")
+            st.balloons()
+            
+            if recs:
+                st.info("👉 Go to **Approval Queue** to review!")
             else:
-                inventory_quantities[prod] = data
-        
-        # Generate AI recommendations
-        st.info("🤖 Calling GPT-4 for each product analysis... (this may take 30-60 seconds)")
-        recs = processor.generate_recommendations_with_ai(inventory_quantities)
-        
-        # Save everything
-        save_sales_data(processor.get_dataframe().to_dict('records'))
-        save_inventory(current_stock)
-        save_recommendations(recs)
-        
-        st.success(f"✅ AI Generated {len(recs)} Recommendations!")
-        st.balloons()
-        
-        if recs:
-            st.info("👉 Go to **Approval Queue** to review AI recommendations!")
+                st.info("ℹ️ No recommendations needed. Inventory levels are good!")
 
 st.markdown("---")
 
 # ==================== SHELF SCANNER ====================
-st.subheader("3️⃣ 📸 Shelf Scanner (Computer Vision)")
-st.markdown("Take a photo of your shelf and AI will detect products and update inventory")
+st.subheader("3️⃣ 📸 Shelf Scanner")
+st.markdown("Use computer vision to detect products and update inventory")
 
 col1, col2 = st.columns(2)
 image_bytes = None
 
 with col1:
     st.markdown("**Upload Photo**")
-    uploaded = st.file_uploader("Choose image", type=["png","jpg","jpeg"], key="upload", label_visibility="collapsed")
-    if uploaded:
-        img = Image.open(uploaded).convert('RGB')
+    up = st.file_uploader("", type=["png","jpg","jpeg"], key="up")
+    if up:
+        img = Image.open(up).convert('RGB')
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         image_bytes = buf.getvalue()
@@ -524,97 +534,84 @@ with col1:
 
 with col2:
     st.markdown("**Take Photo**")
-    camera = st.camera_input("Camera", label_visibility="collapsed")
-    if camera:
-        image_bytes = camera.getvalue()
+    cam = st.camera_input("", label_visibility="collapsed")
+    if cam:
+        image_bytes = cam.getvalue()
         st.image(image_bytes, use_container_width=True)
 
-if image_bytes and st.button("🤖 Analyze Shelf with AI", type="primary", use_container_width=True):
-    with st.spinner("🤖 AI scanning shelf..."):
-        scanner = ShelfScanner()
-        result = scanner.scan_shelf(image_bytes)
-        
-        if result['success']:
-            st.success(f"✅ Detected {len(result['products'])} product types!")
+if image_bytes:
+    if st.button("🤖 Scan Shelf", type="primary", use_container_width=True):
+        with st.spinner("🤖 AI scanning..."):
+            scanner = ShelfScanner()
+            result = scanner.scan_shelf(image_bytes)
             
-            # Load existing inventory
-            inv = load_inventory()
-            
-            # Update with detected quantities
-            for product, quantity in result['products'].items():
-                inv[product] = {
-                    "quantity": quantity,
-                    "last_scanned": datetime.now().isoformat(),
-                    "source": "shelf_scan",
-                    "confidence": result.get('confidence', 0.85)
-                }
-            
-            # Save inventory
-            if save_inventory(inv):
-                st.success("✅ Inventory updated from photo!")
+            if result['success']:
+                st.success(f"✅ Detected {len(result['products'])} products!")
                 
-                # Show what was detected
-                st.markdown("### 📦 Detected Inventory:")
-                for product, quantity in result['products'].items():
-                    st.metric(product.title(), f"{quantity} units")
+                # Update inventory
+                inv = load_inventory()
+                for prod, qty in result['products'].items():
+                    inv[prod] = {
+                        "quantity": qty,
+                        "last_scanned": datetime.now().isoformat(),
+                        "source": "shelf_scan",
+                        "confidence": result.get('confidence', 0.85)
+                    }
                 
-                st.info("✨ Inventory has been updated and will now appear on the Analytics page!")
-                
-                # Force refresh by clearing cache
-                if st.button("🔄 Go to Analytics to See Updated Inventory"):
-                    st.switch_page("pages/genstockai_analytics.py")
+                if save_inventory(inv):
+                    st.success("✅ Inventory updated!")
+                    
+                    # Show detected
+                    st.markdown("### 📦 Detected:")
+                    for prod, qty in result['products'].items():
+                        st.metric(prod.title(), f"{qty} units")
+                    
+                    if st.button("📊 View in Analytics"):
+                        st.switch_page("pages/genstockai_analytics.py")
+                else:
+                    st.error("❌ Save failed")
             else:
-                st.error("❌ Failed to save inventory")
-        else:
-            st.error(f"❌ {result.get('error', 'Unknown error')}")
-            st.info("💡 Try:\n- Better lighting\n- Closer photo\n- Clearer product labels\n- Or manually enter inventory data")
+                st.error(f"❌ {result.get('error')}")
 
 st.markdown("---")
 
-# Current inventory display
+# Current inventory
 st.subheader("📦 Current Inventory")
-current_inv = load_inventory()
+inv = load_inventory()
 
-if current_inv:
-    st.markdown(f"**Tracking {len(current_inv)} products**")
+if inv:
+    st.markdown(f"**{len(inv)} products tracked**")
     
-    inv_data = []
-    for product, data in current_inv.items():
-        if isinstance(data, dict):
-            qty = data.get('quantity', 0)
-            last_update = data.get('last_scanned', data.get('last_updated', 'N/A'))
-            source = data.get('source', 'manual')
+    data = []
+    for p, d in inv.items():
+        if isinstance(d, dict):
+            data.append({
+                'Product': p,
+                'Qty': d.get('quantity', 0),
+                'Updated': d.get('last_scanned', d.get('last_updated', 'N/A'))[:10],
+                'Source': d.get('source', 'manual')
+            })
         else:
-            qty = data
-            last_update = 'N/A'
-            source = 'manual'
-        
-        inv_data.append({
-            'Product': product,
-            'Quantity': qty,
-            'Last Updated': last_update[:10] if last_update != 'N/A' else 'N/A',
-            'Source': source
-        })
+            data.append({'Product': p, 'Qty': d, 'Updated': 'N/A', 'Source': 'manual'})
     
-    df_inv = pd.DataFrame(inv_data)
-    st.dataframe(df_inv, use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(data), use_container_width=True, hide_index=True)
 else:
-    st.info("No inventory data yet. Scan a shelf or upload inventory CSV to get started!")
+    st.info("No inventory yet. Scan a shelf or upload CSV!")
 
-# Developer panel
+# Developer tools
 with st.sidebar:
-    st.markdown("### 🔧 Developer Panel")
+    st.markdown("### 🔧 Dev Tools")
     
     if st.checkbox("Show Config"):
         st.json({
-            "AI_ENABLED": AI_ENABLED,
-            "GPT4_MODEL": GPT4_CONFIG["model"],
-            "ML_CONFIG": ML_CONFIG
+            "AI": AI_ENABLED,
+            "Model": GPT4_CONFIG["model"],
+            "ML": ML_CONFIG
         })
     
-    if st.button("🗑️ Clear All Data (Dev)"):
-        for file in [SALES_DATA_FILE, INVENTORY_FILE, RECOMMENDATIONS_FILE]:
-            if os.path.exists(file):
-                os.remove(file)
-        st.success("All data cleared!")
+    if st.button("🗑️ Clear Data"):
+        for f in [SALES_DATA_FILE, INVENTORY_FILE, RECOMMENDATIONS_FILE]:
+            if os.path.exists(f):
+                os.remove(f)
+        st.success("Cleared!")
         st.rerun()
