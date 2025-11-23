@@ -523,22 +523,42 @@ GEMINI_API_KEY = "YOUR_KEY_HERE"
 # Quick question suggestions
 if GEMINI_ENABLED:
     st.markdown("**💡 Try asking:**")
+    
+    # 1. HELPER FUNCTION: This updates the text box safely
+    def update_gemini_question(new_question):
+        st.session_state['gemini_question'] = new_question
+
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("💰 Which products are most profitable?", use_container_width=True, key="q1"):
-            st.session_state['gemini_question'] = "Which products are most profitable and should I focus on?"
-            st.rerun()
+        # Button 1: Profitable Products
+        st.button(
+            "💰 Which products are most profitable?", 
+            use_container_width=True, 
+            key="q1",
+            on_click=update_gemini_question,
+            args=("Which products are most profitable and should I focus on?",)
+        )
     
     with col2:
-        if st.button("📉 What products are declining?", use_container_width=True, key="q2"):
-            st.session_state['gemini_question'] = "What products are declining and what should I do about them?"
-            st.rerun()
+        # Button 2: Declining Products
+        st.button(
+            "📉 What products are declining?", 
+            use_container_width=True, 
+            key="q2",
+            on_click=update_gemini_question,
+            args=("What products are declining and what should I do about them?",)
+        )
     
     with col3:
-        if st.button("🎯 What's my strategy?", use_container_width=True, key="q3"):
-            st.session_state['gemini_question'] = "Based on my sales data, what should my business strategy be?"
-            st.rerun()
+        # Button 3: Strategy
+        st.button(
+            "🎯 What's my strategy?", 
+            use_container_width=True, 
+            key="q3",
+            on_click=update_gemini_question,
+            args=("Based on my sales data, what should my business strategy be?",)
+        )
 
 st.markdown("---")
 
