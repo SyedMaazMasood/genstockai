@@ -83,15 +83,20 @@ class ShelfScanner:
         }
 
     def _load_yolo(self):
-        if self.yolo_model is None:
-            try:
-                # This is the ONLY model that reliably works on Streamlit free tier
-                self.yolo_model = YOLO("yolov8n.pt")  # 6MB, loads in ~8s first time
-                st.success("YOLOv8 vision model loaded!")
-            except Exception as e:
-                st.warning("YOLO not available, using easyocr fallback")
-                self.yolo_model = False
-        return self.yolo_model
+        if hasattr(self, 'yolo_loaded'):
+            return self.yolo_model
+            
+        try:
+            from ultralytics import YOLO
+            # Try to load — if it fails or takes too long, Streamlit will timeout anyway
+            self.yolo_model = YOLO("yolov8n.pt")
+            self.yolo_loaded = True
+            return self.yolo_model
+        except Exception as e:
+            st.warning("Vision model not available on this deployment — using text-only mode")
+            self.yolo_model = None
+            self.yolo_loaded = True
+            return None
 
     def _load_ocr(self):
         if self.ocr_reader is None:
@@ -119,7 +124,7 @@ class ShelfScanner:
             model = self._load_yolo()
             if model and model != False:
                 try:
-                    results = model(img, conf=0.4, iou=0.45, verbose=False)
+                    results = model(img, conf=0.4, iou=0.45, verbose=False, device='cpu')
                     for r in results:
                         for box in r.boxes:
                             label = r.names[int(box.cls[0])].lower()
@@ -128,8 +133,8 @@ class ShelfScanner:
                                 for key, name in self.product_map.items():
                                     if key in label:
                                         detected[name] = detected.get(name, 0) + 1
-                except Exception as e:
-                    st.warning("YOLO failed, falling back to easyocr")
+                except:
+                    model = None  # In case of failure, fallback to OCR
 
             # === FALLBACK TO easyocr (your old method) ===
             if not detected and self._load_ocr():
