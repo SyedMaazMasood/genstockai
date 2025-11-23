@@ -33,7 +33,7 @@ if AI_PROVIDER == "groq":
         from groq import Groq
         ai_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
         AI_ENABLED = True
-        AI_MODEL = "llama-3.1-70b-versatile"  # Groq's best free model
+        AI_MODEL = "llama-3.3-70b-versatile"  # Groq's best free model
         st.sidebar.success(f"✅ AI Active: Groq (FREE)")
     except Exception as e:
         st.sidebar.error(f"❌ Groq Error: {e}")
