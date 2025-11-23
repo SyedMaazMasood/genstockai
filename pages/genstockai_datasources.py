@@ -74,6 +74,9 @@ class ShelfScanner:
             'milk': ['milk', '2%', 'whole', 'skim'],
             'pepsi': ['pepsi', 'cola'],
             'coca-cola': ['coke', 'coca', 'cola'],
+            'lays chips': ['lays', 'chips', 'potato'],
+            'doritos': ['doritos', 'nacho', 'chips'],
+            'cheetos': ['cheetos', 'cheese', 'snack'],
         }
         self.confidence_threshold = 0.5
         
