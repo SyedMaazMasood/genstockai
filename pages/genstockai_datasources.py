@@ -87,7 +87,7 @@ class ShelfScanner:
             return self.yolo_model
             
         try:
-            from ultralytics import YOLO
+            #from ultralytics import YOLO
             # Try to load — if it fails or takes too long, Streamlit will timeout anyway
             self.yolo_model = YOLO("yolov8n.pt")
             self.yolo_loaded = True
