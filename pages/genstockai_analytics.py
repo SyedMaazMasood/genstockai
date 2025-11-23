@@ -20,16 +20,25 @@ try:
     
     if GEMINI_API_KEY:
         genai.configure(api_key=GEMINI_API_KEY)
-        # Try different model names - Gemini API has different versions
-        try:
-            gemini_model = genai.GenerativeModel('gemini-pro')  # Stable model name
-        except:
-            try:
-                gemini_model = genai.GenerativeModel('models/gemini-pro')  # Alternative format
-            except:
-                gemini_model = genai.GenerativeModel('gemini-1.5-pro-latest')  # Latest version
         
-        GEMINI_ENABLED = True
+        # List available models to find the correct one
+        try:
+            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            st.sidebar.info(f"Available Gemini models: {', '.join(available_models[:3])}")
+            
+            # Use the first available model that supports content generation
+            if available_models:
+                model_name = available_models[0]
+                gemini_model = genai.GenerativeModel(model_name)
+                GEMINI_ENABLED = True
+            else:
+                GEMINI_ENABLED = False
+                gemini_model = None
+                st.sidebar.error("No Gemini models support content generation")
+        except Exception as e:
+            st.sidebar.error(f"Could not list models: {e}")
+            GEMINI_ENABLED = False
+            gemini_model = None
     else:
         GEMINI_ENABLED = False
         gemini_model = None
