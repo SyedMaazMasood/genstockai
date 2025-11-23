@@ -175,6 +175,9 @@ with status_col2:
         st.markdown(f"- ⚪ 🤖 Reorder Agent (Not configured)")
         st.markdown(f"- ⚪ 🤖 Promotion Agent (Not configured)")
         st.markdown(f"- ⚪ 🤖 Analysis Engine (Not configured)")
+        
+    st.markdown(f"- ✅ 🤖 Q&A Analytics (Gemini - FREE)")
+    st.markdown(f"- ✅ 🤖 Computer Vision (YOLOv8 - Local)")
 
 # Add AI insights section
 st.markdown("---")
