@@ -19,7 +19,7 @@ To switch providers, update secrets.toml:
     AI_PROVIDER = "groq"     # FREE - Recommended for development
     AI_PROVIDER = "openai"   # PAID - Use when you have credits
 
-Groq: Free, fast Llama 3.1 (70B) - comparable to GPT-4
+Groq: Free, fast Llama 3.3 (70B) - comparable to GPT-4
 OpenAI: Paid GPT-4o-mini - slightly better quality but costs money
 """
 
@@ -109,7 +109,7 @@ def call_ai_for_reorder_analysis(product, velocity, current_stock, sales_history
     """
     Uses REAL AI (Groq or OpenAI) to analyze reorder needs
     
-    GROQ (FREE): Uses Llama 3.1 70B - very fast and free
+    GROQ (FREE): Uses Llama 3.3 70B - very fast and free
     OPENAI (PAID): Uses GPT-4o-mini - costs ~$0.0003 per call
     
     To switch: Change AI_PROVIDER in secrets.toml
@@ -493,7 +493,7 @@ st.markdown("Upload sales data and scan shelves to power AI recommendations")
 # Show AI status banner
 if AI_ENABLED:
     if AI_PROVIDER == "groq":
-        st.success(f"✅ AI Active: Groq Llama 3.1 (70B) - **FREE & UNLIMITED**")
+        st.success(f"✅ AI Active: Groq Llama 3.3 (70B) - **FREE & UNLIMITED**")
         st.info("💡 To use OpenAI GPT-4 (paid), change AI_PROVIDER to 'openai' in secrets.toml")
     else:
         st.success(f"✅ AI Active: OpenAI {AI_MODEL}")

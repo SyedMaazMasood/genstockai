@@ -75,7 +75,7 @@ st.markdown("### Your AI-Powered Inventory Management Assistant")
 
 # AI Status Banner
 if AI_PROVIDER == "groq":
-    st.success(f"✅ **AI Engine Active:** Groq Llama 3.1 (70B) - FREE & Unlimited")
+    st.success(f"✅ **AI Engine Active:** Groq Llama 3.3 (70B) - FREE & Unlimited")
 elif AI_PROVIDER == "openai":
     st.info(f"✅ **AI Engine Active:** OpenAI GPT-4o-mini - Paid API (Switch to Groq for free)")
 else:
@@ -164,8 +164,8 @@ with status_col2:
     
     # Show actual AI provider
     if AI_PROVIDER == "groq":
-        st.markdown(f"- {agent_status} 🤖 Reorder Agent (Groq Llama 3.1 - FREE)")
-        st.markdown(f"- {agent_status} 🤖 Promotion Agent (Groq Llama 3.1 - FREE)")
+        st.markdown(f"- {agent_status} 🤖 Reorder Agent (Groq Llama 3.3 - FREE)")
+        st.markdown(f"- {agent_status} 🤖 Promotion Agent (Groq Llama 3.3 - FREE)")
         st.markdown(f"- {agent_status} 🤖 Analysis Engine (Groq - FREE)")
     elif AI_PROVIDER == "openai":
         st.markdown(f"- {agent_status} 🤖 Reorder Agent (OpenAI GPT-4o-mini - PAID)")
@@ -190,7 +190,7 @@ if has_data:
         st.markdown(f"- 🔍 Identified {pending_recs} optimization opportunities via AI analysis")
         
         if AI_PROVIDER == "groq":
-            st.markdown(f"- 💡 Generated recommendations using Groq Llama 3.1 (FREE)")
+            st.markdown(f"- 💡 Generated recommendations using Groq Llama 3.3 (FREE)")
         elif AI_PROVIDER == "openai":
             st.markdown(f"- 💡 Generated recommendations using OpenAI GPT-4o-mini (PAID)")
         else:
@@ -220,5 +220,5 @@ if has_data or pending_recs > 0:
 
 # Footer
 st.markdown("---")
-ai_credit = "Groq Llama 3.1 (FREE)" if AI_PROVIDER == "groq" else "OpenAI GPT-4o-mini" if AI_PROVIDER == "openai" else "Rule-based Logic"
+ai_credit = "Groq Llama 3.3 (FREE)" if AI_PROVIDER == "groq" else "OpenAI GPT-4o-mini" if AI_PROVIDER == "openai" else "Rule-based Logic"
 st.caption(f"GenStockAI © 2025 | Powered by {ai_credit} & YOLOv8 Computer Vision | Built for Small Business Owners")
