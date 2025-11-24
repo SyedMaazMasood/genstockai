@@ -21,24 +21,36 @@ try:
     if GEMINI_API_KEY:
         genai.configure(api_key=GEMINI_API_KEY)
         
-        # List available models to find the correct one
+        # Use gemini-1.5-flash - it has MUCH higher free tier limits
+        # Free tier: 15 RPM (requests per minute), 1M RPD (requests per day)
+        # vs gemini-2.5-pro-exp which has very low limits
         try:
-            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-            st.sidebar.info(f"Available Gemini models: {', '.join(available_models[:3])}")
-            
-            # Use the first available model that supports content generation
-            if available_models:
-                model_name = available_models[0]
+            gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+            GEMINI_ENABLED = True
+            st.sidebar.success("✅ Using Gemini 1.5 Flash (High free tier limits)")
+        except Exception as e:
+            # Fallback to listing available models
+            try:
+                available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                
+                # Prefer flash models (higher limits)
+                flash_models = [m for m in available_models if 'flash' in m.lower()]
+                
+                if flash_models:
+                    model_name = flash_models[0]
+                elif available_models:
+                    model_name = available_models[0]
+                else:
+                    raise Exception("No models available")
+                
                 gemini_model = genai.GenerativeModel(model_name)
                 GEMINI_ENABLED = True
-            else:
+                st.sidebar.info(f"Using model: {model_name}")
+                
+            except Exception as e2:
+                st.sidebar.error(f"Could not initialize Gemini: {e2}")
                 GEMINI_ENABLED = False
                 gemini_model = None
-                st.sidebar.error("No Gemini models support content generation")
-        except Exception as e:
-            st.sidebar.error(f"Could not list models: {e}")
-            GEMINI_ENABLED = False
-            gemini_model = None
     else:
         GEMINI_ENABLED = False
         gemini_model = None
@@ -210,11 +222,13 @@ def generate_ai_response_with_gemini(question, stats, products, trends):
     """
     Uses REAL Google Gemini AI to answer questions about your data
     
-    Gemini Pro:
-    - FREE with generous limits (60 requests/min)
-    - Fast responses (~1-2 seconds)
+    Gemini 1.5 Flash:
+    - FREE with generous limits (15 requests/min, 1 million/day)
+    - Very fast responses (~1 second)
     - Excellent at data analysis and business intelligence
     - No credit card required for free tier
+    
+    Note: Using Flash instead of Pro experimental to avoid quota limits
     """
     
     if not GEMINI_ENABLED:
@@ -264,7 +278,7 @@ You are a business intelligence analyst helping a small business owner understan
 {response.text}
 
 ---
-**AI Model:** Google Gemini Pro (FREE)
+**AI Model:** Google Gemini 1.5 Flash (FREE - High Limits)
 **Analysis Date:** {time.strftime('%Y-%m-%d %H:%M')}
 **Data Points:** {stats.get('total_transactions', 0):,} transactions"""
         
@@ -497,7 +511,7 @@ st.markdown("### 🤖 AI-Powered Q&A")
 with st.container(border=True):
     if GEMINI_ENABLED:
         st.markdown("#### Ask Google Gemini About Your Data")
-        st.success("✅ **Powered by:** Google Gemini Pro (FREE)")
+        st.success("✅ **Powered by:** Google Gemini 1.5 Flash (FREE - 15 req/min)")
         st.caption("💡 Gemini analyzes your actual sales data and provides intelligent insights")
     else:
         st.markdown("#### AI Q&A Not Configured")
