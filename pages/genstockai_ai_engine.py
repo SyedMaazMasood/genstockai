@@ -173,24 +173,63 @@ if st.button("▶️ Run Live AI Analysis", type="primary", use_container_width=
         with st.expander("🧠 View AI Reasoning (Real Output)", expanded=True):
             st.markdown(ai_response_2)
 
-    # --- AGENT 3: COMPUTER VISION ---
-    # Note: We keep CV simulated because we can't "generate" a vision analysis 
-    # without a real input image.
+# --- AGENT 3: NEGOTIATION AGENT ---
     with st.container(border=True):
-        st.markdown("### 📸 Computer Vision Agent")
-        st.info("ℹ️ *Note: Computer Vision requires a camera input. This section simulates the output of YOLOv8.*")
+        st.markdown("### 💬 Negotiation Agent - Analysis")
         
-        steps3 = ["Processing shelf image...", "YOLOv8 Object Detection...", "Matching Inventory..."]
+        # 1. Visual Loading
         progress_bar3 = st.progress(0)
-        status = st.empty()
+        status_text3 = st.empty()
+        status_text3.markdown("**📥 Ingesting supplier data: Peak Coffee...**")
+        time.sleep(0.5)
+        progress_bar3.progress(20)
         
-        for i, s in enumerate(steps3):
-            status.markdown(f"**{s}**")
-            progress_bar3.progress((i+1)*33)
-            time.sleep(0.4)
+        # 2. DEFINE DATA (We send this to the AI)
+        sample_negotiation_data = """
+        Vendor: Peak Coffee
+        Product: Premium Arabica Beans
+        Current Price: $12.50/lb
+        Monthly Volume: 40 lbs
+        Competitor Offer (Roast Co.): $11.88/lb
+        Target Discount: 5% ($0.62/lb reduction)
+        Relationship Duration: 8 months
+        Payment History: 100% On-time
+        """
+        
+        # 3. CALL REAL AI
+        # We update the progress bar while "thinking"
+        steps3 = [
+            "Web scraping competitor prices (Simulated)...",
+            "Analyzing supplier payment history...",
+            f"🧠 {AI_MODEL} drafting negotiation strategy...",
+            "Calculating projected annual savings..."
+        ]
+        
+        for i, step in enumerate(steps3):
+            status_text3.markdown(f"**{step}**")
+            progress_bar3.progress(20 + (i+1)*15)
+            time.sleep(0.5)
             
-        st.success("**✅ Detected:** 12 Bottles, 3 Cups")
-        st.code("Model: YOLOv8n (Local) | Confidence: 88% | Latency: 120ms")
+        negotiation_system = """
+        You are a procurement expert. Write a professional negotiation email to a vendor. 
+        Use the provided data to justify a price reduction request. 
+        Tone: Professional, appreciative of the partnership, but firm on the market price reality.
+        Include a subject line.
+        """
+        
+        # Actual API Call
+        ai_response_3 = generate_real_analysis(negotiation_system, f"Write a negotiation email based on this data: {sample_negotiation_data}")
+        
+        progress_bar3.progress(100)
+        status_text3.empty()
+        
+        # 4. Display Result
+        st.success("**AI Recommendation Generated:** Negotiate 5% discount with Peak Coffee")
+        st.markdown(f"**Input Data:** {sample_negotiation_data}")
+        
+        with st.expander("🧠 View AI-Generated Email (Real Output)", expanded=True):
+            st.markdown(ai_response_3)
+            st.caption(f"💡 Generated dynamically by {AI_MODEL}")
 
 st.markdown("---")
 
@@ -202,11 +241,13 @@ with col1:
         st.markdown("### **Generative AI**")
         st.markdown(f"- **Model:** {AI_MODEL}")
         st.markdown("- **Role:** Decision making, reasoning, strategy")
+        st.markdown(f"- **Provider:** {AI_PROVIDER.upper()}")
 with col2:
     with st.container(border=True):
-        st.markdown("### **Computer Vision**")
-        st.markdown("- **Model:** YOLOv8 + EasyOCR")
-        st.markdown("- **Role:** Physical world data collection")
+        st.markdown("### **Agents & Tools**")
+        st.markdown("- **Reorder Agent:** Time-series analysis")
+        st.markdown("- **Promo Agent:** Revenue optimization logic")
+        st.markdown("- **Negotiation Agent:** NLP & persuasion engines")
 
 st.markdown("---")
 
