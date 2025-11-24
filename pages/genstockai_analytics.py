@@ -319,7 +319,7 @@ st.markdown("AI-powered analysis of your sales and inventory performance")
 col_ai1, col_ai2 = st.columns(2)
 with col_ai1:
     if AI_PROVIDER == "groq":
-        st.success("🤖 **Recommendations:** Groq Llama 3.1 (FREE)")
+        st.success("🤖 **Recommendations:** Groq Llama 3.3 (FREE)")
     elif AI_PROVIDER == "openai":
         st.info("🤖 **Recommendations:** OpenAI GPT-4o-mini (PAID)")
     else:
@@ -327,7 +327,7 @@ with col_ai1:
 
 with col_ai2:
     if GEMINI_ENABLED:
-        st.success("🤖 **Q&A Analysis:** Google Gemini Pro (FREE)")
+        st.success("🤖 **Q&A Analysis:** Google Gemini 1.5 Flash (FREE)")
     else:
         st.warning("⚠️ **Q&A Analysis:** Add GEMINI_API_KEY")
 
@@ -643,12 +643,12 @@ with col3:
 st.markdown("---")
 ai_stack = []
 if AI_PROVIDER == "groq":
-    ai_stack.append("Groq Llama 3.1 (Recommendations)")
+    ai_stack.append("Groq Llama 3.3 (Recommendations)")
 elif AI_PROVIDER == "openai":
     ai_stack.append("OpenAI GPT-4o-mini (Recommendations)")
 
 if GEMINI_ENABLED:
-    ai_stack.append("Google Gemini Pro (Q&A)")
+    ai_stack.append("Google Google Gemini 1.5 Flash (Q&A)")
 
 ai_text = " + ".join(ai_stack) if ai_stack else "Template-based Logic"
 st.caption(f"🤖 Powered by: {ai_text} | Computer Vision: YOLOv8 + EasyOCR")

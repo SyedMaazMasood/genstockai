@@ -10,7 +10,7 @@ AI_PROVIDER = st.secrets.get("AI_PROVIDER", "groq").lower()
 
 # Show active AI provider banner
 if AI_PROVIDER == "groq":
-    st.success("✅ **Active AI:** Groq Llama 3.1 (70B) - FREE & Unlimited")
+    st.success("✅ **Active AI:** Groq Llama 3.3 (70B) - FREE & Unlimited")
     st.info("💡 **Note:** Currently using Groq (FREE). Switch to OpenAI GPT-4 in secrets.toml when you have credits available.")
 elif AI_PROVIDER == "openai":
     st.success("✅ **Active AI:** OpenAI GPT-4o-mini")
@@ -31,7 +31,7 @@ with st.container(border=True):
     with col1:
         st.markdown("#### 🔄 Reorder Agent")
         if AI_PROVIDER == "groq":
-            st.markdown("**Powered by:** Groq Llama 3.1 (FREE)")
+            st.markdown("**Powered by:** Groq Llama 3.3 (FREE)")
         elif AI_PROVIDER == "openai":
             st.markdown("**Powered by:** OpenAI GPT-4o-mini (PAID)")
         else:
@@ -42,7 +42,7 @@ with st.container(border=True):
     with col2:
         st.markdown("#### 🏷️ Promotion Agent")
         if AI_PROVIDER == "groq":
-            st.markdown("**Powered by:** Groq Llama 3.1 (FREE)")
+            st.markdown("**Powered by:** Groq Llama 3.3 (FREE)")
         elif AI_PROVIDER == "openai":
             st.markdown("**Powered by:** OpenAI GPT-4o-mini (PAID)")
         else:
@@ -53,7 +53,7 @@ with st.container(border=True):
     with col3:
         st.markdown("#### 💬 Analysis Engine")
         if AI_PROVIDER == "groq":
-            st.markdown("**Powered by:** Groq Llama 3.1 (FREE)")
+            st.markdown("**Powered by:** Groq Llama 3.3 (FREE)")
         elif AI_PROVIDER == "openai":
             st.markdown("**Powered by:** OpenAI GPT-4o-mini (PAID)")
         else:
@@ -75,7 +75,7 @@ if st.button("▶️ Run Live AI Analysis Demo", type="primary", use_container_w
         progress_bar = st.progress(0)
         status_text = st.empty()
         
-        ai_name = "Groq Llama 3.1" if AI_PROVIDER == "groq" else "GPT-4o-mini" if AI_PROVIDER == "openai" else "Rule-based"
+        ai_name = "Groq Llama 3.3" if AI_PROVIDER == "groq" else "GPT-4o-mini" if AI_PROVIDER == "openai" else "Rule-based"
         
         steps = [
             "Loading sales data (247 transactions)...",
@@ -181,8 +181,8 @@ with col1:
     with st.container(border=True):
         st.markdown("### **Large Language Models**")
         if AI_PROVIDER == "groq":
-            st.markdown("- **Groq Llama 3.1 (70B)**: Demand forecasting & analysis (FREE)")
-            st.markdown("- **Groq Llama 3.1 (70B)**: Promotion strategies (FREE)")
+            st.markdown("- **Groq Llama 3.3 (70B)**: Demand forecasting & analysis (FREE)")
+            st.markdown("- **Groq Llama 3.3 (70B)**: Promotion strategies (FREE)")
             st.markdown("- 💡 *OpenAI GPT-4 available when you have credits*")
         elif AI_PROVIDER == "openai":
             st.markdown("- **OpenAI GPT-4o-mini**: Demand forecasting (PAID)")
@@ -239,7 +239,7 @@ comparison_data = {
     "Groq (Current)" if AI_PROVIDER == "groq" else "Groq": [
         "**$0 FREE**",
         "⚡ Very Fast (0.8s)",
-        "🟢 Excellent (Llama 3.1 70B)",
+        "🟢 Excellent (Llama 3.3 70B)",
         "✅ Unlimited",
         "Development & Production"
     ],
