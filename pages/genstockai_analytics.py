@@ -21,43 +21,59 @@ try:
     if GEMINI_API_KEY:
         genai.configure(api_key=GEMINI_API_KEY)
         
-        # Use gemini-1.5-flash - it has MUCH higher free tier limits
-        # Free tier: 15 RPM (requests per minute), 1M RPD (requests per day)
-        # vs gemini-2.5-pro-exp which has very low limits
-        try:
-            gemini_model = genai.GenerativeModel('gemini-1.5-flash')
-            GEMINI_ENABLED = True
-            st.sidebar.success("✅ Using Gemini 1.5 Flash (High free tier limits)")
-        except Exception as e:
-            # Fallback to listing available models
+        # Priority list of models to try (Flash is best for free tier)
+        candidate_models = [
+            'gemini-1.5-flash',      # Standard free model
+            'gemini-2.5-flash',      # Newer free model (if available)
+            'gemini-1.5-flash-latest',
+            'gemini-1.5-flash-001',
+            'gemini-pro'             # Fallback
+        ]
+        
+        gemini_model = None
+        
+        # 1. Try specific known models first (Faster)
+        for model_name in candidate_models:
             try:
-                available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                test_model = genai.GenerativeModel(model_name)
+                # CRITICAL: We must send a request to verify the model works!
+                # This prevents "404 Not Found" errors later in the app
+                test_model.generate_content("test")
                 
-                # Prefer flash models (higher limits)
-                flash_models = [m for m in available_models if 'flash' in m.lower()]
-                
-                if flash_models:
-                    model_name = flash_models[0]
-                elif available_models:
-                    model_name = available_models[0]
-                else:
-                    raise Exception("No models available")
-                
-                gemini_model = genai.GenerativeModel(model_name)
+                gemini_model = test_model
                 GEMINI_ENABLED = True
-                st.sidebar.info(f"Using model: {model_name}")
-                
-            except Exception as e2:
-                st.sidebar.error(f"Could not initialize Gemini: {e2}")
-                GEMINI_ENABLED = False
-                gemini_model = None
+                st.sidebar.success(f"✅ Gemini Active ({model_name})")
+                break # Stop looking, we found one
+            except Exception:
+                continue # Try the next one
+        
+        # 2. Fallback: If all specific names fail, search the account's list
+        if not gemini_model:
+            try:
+                st.sidebar.warning("⚠️ Standard models failed, searching account...")
+                available = genai.list_models()
+                for m in available:
+                    if 'generateContent' in m.supported_generation_methods:
+                        # Grab the first one that works
+                        gemini_model = genai.GenerativeModel(m.name)
+                        GEMINI_ENABLED = True
+                        st.sidebar.info(f"Using fallback: {m.name}")
+                        break
+            except Exception as e:
+                pass
+
+        if not gemini_model:
+            GEMINI_ENABLED = False
+            st.sidebar.error("❌ No Gemini models available for this API key.")
+            
     else:
         GEMINI_ENABLED = False
         gemini_model = None
+
 except Exception as e:
     GEMINI_ENABLED = False
     gemini_model = None
-    st.sidebar.warning(f"Gemini not available: {e}")
+    st.sidebar.warning(f"Gemini not configured: {e}")
 
 # ==================== EMBEDDED CONFIG & PROCESSOR ====================
 DATA_DIR = "data"
